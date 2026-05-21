@@ -1,8 +1,8 @@
 {
   "name": "animation-block-wrapper",
   "version": "1.0.0",
-  "description": "MIT-licensed Gutenberg wrapper block with lightweight, content-aware animations.",
-  "license": "MIT",
+  "description": "GPL-2.0-or-later Gutenberg wrapper block with lightweight animations.",
+  "license": "GPL-2.0-or-later",
   "private": true,
   "scripts": {
     "lint": "echo 'Add lint tooling as needed'",
