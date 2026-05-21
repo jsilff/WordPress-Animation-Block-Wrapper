@@ -25,7 +25,7 @@ Features:
 
 == Installation ==
 
-1. Upload the plugin files to `/wp-content/plugins/animation-block-wrapper`, or install through the WordPress plugins screen.
+1. Upload the plugin files to `/wp-content/plugins/anilibrary`, or install through the WordPress plugins screen.
 2. Activate the plugin through the "Plugins" screen in WordPress.
 3. Open the block editor and add "AniLibrary".
 4. Place one or more blocks inside the wrapper and configure animation settings in the sidebar.

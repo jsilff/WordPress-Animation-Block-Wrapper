@@ -19,18 +19,18 @@ import { useEffect, useMemo, useState } from '@wordpress/element';
 import metadata from '../block.json';
 
 const PRESETS = [
-	{ id: 'fade', label: __('Fade', 'animation-block-wrapper'), kinds: ['text', 'mixed', 'layout', 'media'], category: 'entrance', preview: 'up' },
-	{ id: 'slide', label: __('Slide', 'animation-block-wrapper'), kinds: ['text', 'mixed', 'layout', 'media'], category: 'entrance', preview: 'up-strong' },
-	{ id: 'zoom', label: __('Zoom', 'animation-block-wrapper'), kinds: ['media', 'mixed', 'layout', 'text'], category: 'entrance', preview: 'zoom-in' },
-	{ id: 'blur-in', label: __('Blur', 'animation-block-wrapper'), kinds: ['media', 'mixed', 'text'], category: 'entrance', preview: 'blur' },
-	{ id: 'rotate-in', label: __('Rotate', 'animation-block-wrapper'), kinds: ['mixed', 'layout', 'media', 'text'], category: 'entrance', preview: 'rotate' },
-	{ id: 'flip', label: __('Flip', 'animation-block-wrapper'), kinds: ['mixed', 'layout', 'media', 'text'], category: 'entrance', preview: 'flip' },
-	{ id: 'text-rise', label: __('Rise', 'animation-block-wrapper'), kinds: ['text', 'mixed'], category: 'text', preview: 'text-rise' },
-	{ id: 'word-cascade', label: __('Cascade', 'animation-block-wrapper'), kinds: ['text'], category: 'text', preview: 'cascade' },
-	{ id: 'letter-pop', label: __('Pop', 'animation-block-wrapper'), kinds: ['text'], category: 'text', preview: 'letter-pop' },
-	{ id: 'pulse-soft', label: __('Pulse', 'animation-block-wrapper'), kinds: ['text', 'mixed', 'layout', 'media'], category: 'loop', preview: 'pulse' },
-	{ id: 'float-soft', label: __('Float', 'animation-block-wrapper'), kinds: ['text', 'mixed', 'layout', 'media'], category: 'loop', preview: 'float' },
-	{ id: 'bounce-soft', label: __('Bounce', 'animation-block-wrapper'), kinds: ['text', 'mixed', 'layout', 'media'], category: 'loop', preview: 'bounce' },
+	{ id: 'fade', label: __('Fade', 'anilibrary'), kinds: ['text', 'mixed', 'layout', 'media'], category: 'entrance', preview: 'up' },
+	{ id: 'slide', label: __('Slide', 'anilibrary'), kinds: ['text', 'mixed', 'layout', 'media'], category: 'entrance', preview: 'up-strong' },
+	{ id: 'zoom', label: __('Zoom', 'anilibrary'), kinds: ['media', 'mixed', 'layout', 'text'], category: 'entrance', preview: 'zoom-in' },
+	{ id: 'blur-in', label: __('Blur', 'anilibrary'), kinds: ['media', 'mixed', 'text'], category: 'entrance', preview: 'blur' },
+	{ id: 'rotate-in', label: __('Rotate', 'anilibrary'), kinds: ['mixed', 'layout', 'media', 'text'], category: 'entrance', preview: 'rotate' },
+	{ id: 'flip', label: __('Flip', 'anilibrary'), kinds: ['mixed', 'layout', 'media', 'text'], category: 'entrance', preview: 'flip' },
+	{ id: 'text-rise', label: __('Rise', 'anilibrary'), kinds: ['text', 'mixed'], category: 'text', preview: 'text-rise' },
+	{ id: 'word-cascade', label: __('Cascade', 'anilibrary'), kinds: ['text'], category: 'text', preview: 'cascade' },
+	{ id: 'letter-pop', label: __('Pop', 'anilibrary'), kinds: ['text'], category: 'text', preview: 'letter-pop' },
+	{ id: 'pulse-soft', label: __('Pulse', 'anilibrary'), kinds: ['text', 'mixed', 'layout', 'media'], category: 'loop', preview: 'pulse' },
+	{ id: 'float-soft', label: __('Float', 'anilibrary'), kinds: ['text', 'mixed', 'layout', 'media'], category: 'loop', preview: 'float' },
+	{ id: 'bounce-soft', label: __('Bounce', 'anilibrary'), kinds: ['text', 'mixed', 'layout', 'media'], category: 'loop', preview: 'bounce' },
 ];
 
 const RECOMMENDATIONS = {
@@ -41,26 +41,26 @@ const RECOMMENDATIONS = {
 };
 
 const PRESET_DESCRIPTIONS = {
-	fade: __('Fades in smoothly.', 'animation-block-wrapper'),
-	slide: __('Slides into place.', 'animation-block-wrapper'),
-	zoom: __('Zooms in or out to draw attention.', 'animation-block-wrapper'),
-	'blur-in': __('Starts soft and sharpens into focus.', 'animation-block-wrapper'),
-	'rotate-in': __('Rotates in gently.', 'animation-block-wrapper'),
-	flip: __('Flips in from a chosen direction.', 'animation-block-wrapper'),
-	'text-rise': __('Text moves in from up or down.', 'animation-block-wrapper'),
-	'word-cascade': __('Words appear one after another.', 'animation-block-wrapper'),
-	'letter-pop': __('Text pops in quickly.', 'animation-block-wrapper'),
-	'pulse-soft': __('Gently pulses. Best with Loop trigger.', 'animation-block-wrapper'),
-	'float-soft': __('Gently drifts. Best with Loop trigger.', 'animation-block-wrapper'),
-	'bounce-soft': __('Bounces playfully. Best with Loop trigger.', 'animation-block-wrapper'),
+	fade: __('Fades in smoothly.', 'anilibrary'),
+	slide: __('Slides into place.', 'anilibrary'),
+	zoom: __('Zooms in or out to draw attention.', 'anilibrary'),
+	'blur-in': __('Starts soft and sharpens into focus.', 'anilibrary'),
+	'rotate-in': __('Rotates in gently.', 'anilibrary'),
+	flip: __('Flips in from a chosen direction.', 'anilibrary'),
+	'text-rise': __('Text moves in from up or down.', 'anilibrary'),
+	'word-cascade': __('Words appear one after another.', 'anilibrary'),
+	'letter-pop': __('Text pops in quickly.', 'anilibrary'),
+	'pulse-soft': __('Gently pulses. Best with Loop trigger.', 'anilibrary'),
+	'float-soft': __('Gently drifts. Best with Loop trigger.', 'anilibrary'),
+	'bounce-soft': __('Bounces playfully. Best with Loop trigger.', 'anilibrary'),
 };
 
 const LIBRARY_CATEGORIES = [
-	{ value: 'recommended', label: __('Recommended', 'animation-block-wrapper') },
-	{ value: 'entrance', label: __('Entrance', 'animation-block-wrapper') },
-	{ value: 'text', label: __('Text', 'animation-block-wrapper') },
-	{ value: 'loop', label: __('Loop / Attention', 'animation-block-wrapper') },
-	{ value: 'all', label: __('All', 'animation-block-wrapper') },
+	{ value: 'recommended', label: __('Recommended', 'anilibrary') },
+	{ value: 'entrance', label: __('Entrance', 'anilibrary') },
+	{ value: 'text', label: __('Text', 'anilibrary') },
+	{ value: 'loop', label: __('Loop / Attention', 'anilibrary') },
+	{ value: 'all', label: __('All', 'anilibrary') },
 ];
 
 const HOVER_HIDE_SUPPORTED_PRESETS = new Set([
@@ -108,46 +108,46 @@ function formatDelaySeconds(ms) {
 
 function getTriggerBadgeLabel(trigger) {
 	const labels = {
-		scroll: __('Scroll', 'animation-block-wrapper'),
-		load: __('Load', 'animation-block-wrapper'),
-		hover: __('Hover', 'animation-block-wrapper'),
-		click: __('Click', 'animation-block-wrapper'),
-		loop: __('Loop', 'animation-block-wrapper'),
+		scroll: __('Scroll', 'anilibrary'),
+		load: __('Load', 'anilibrary'),
+		hover: __('Hover', 'anilibrary'),
+		click: __('Click', 'anilibrary'),
+		loop: __('Loop', 'anilibrary'),
 	};
-	return labels[trigger] || __('Scroll', 'animation-block-wrapper');
+	return labels[trigger] || __('Scroll', 'anilibrary');
 }
 
 function getDirectionOptions(presetId) {
 	const scrollLinkedOptions = [
-		{ label: __('Scroll Direction', 'animation-block-wrapper'), value: 'scroll' },
-		{ label: __('Reverse Scroll Direction', 'animation-block-wrapper'), value: 'scroll-reverse' },
+		{ label: __('Scroll Direction', 'anilibrary'), value: 'scroll' },
+		{ label: __('Reverse Scroll Direction', 'anilibrary'), value: 'scroll-reverse' },
 	];
 	if (presetId === 'text-rise') {
 		return [
-			{ label: __('Up', 'animation-block-wrapper'), value: 'up' },
-			{ label: __('Down', 'animation-block-wrapper'), value: 'down' },
+			{ label: __('Up', 'anilibrary'), value: 'up' },
+			{ label: __('Down', 'anilibrary'), value: 'down' },
 			...scrollLinkedOptions,
 		];
 	}
 	if (presetId === 'rotate-in') {
 		return [
-			{ label: __('Clockwise', 'animation-block-wrapper'), value: 'clockwise' },
-			{ label: __('Counterclockwise', 'animation-block-wrapper'), value: 'counterclockwise' },
+			{ label: __('Clockwise', 'anilibrary'), value: 'clockwise' },
+			{ label: __('Counterclockwise', 'anilibrary'), value: 'counterclockwise' },
 		];
 	}
 	if (presetId === 'flip') {
 		return [
-			{ label: __('Left', 'animation-block-wrapper'), value: 'left' },
-			{ label: __('Right', 'animation-block-wrapper'), value: 'right' },
-			{ label: __('Vertical', 'animation-block-wrapper'), value: 'vertical' },
-			{ label: __('Horizontal', 'animation-block-wrapper'), value: 'horizontal' },
+			{ label: __('Left', 'anilibrary'), value: 'left' },
+			{ label: __('Right', 'anilibrary'), value: 'right' },
+			{ label: __('Vertical', 'anilibrary'), value: 'vertical' },
+			{ label: __('Horizontal', 'anilibrary'), value: 'horizontal' },
 		];
 	}
 	return [
-		{ label: __('Up', 'animation-block-wrapper'), value: 'up' },
-		{ label: __('Down', 'animation-block-wrapper'), value: 'down' },
-		{ label: __('Left', 'animation-block-wrapper'), value: 'left' },
-		{ label: __('Right', 'animation-block-wrapper'), value: 'right' },
+		{ label: __('Up', 'anilibrary'), value: 'up' },
+		{ label: __('Down', 'anilibrary'), value: 'down' },
+		{ label: __('Left', 'anilibrary'), value: 'left' },
+		{ label: __('Right', 'anilibrary'), value: 'right' },
 		...scrollLinkedOptions,
 	];
 }
@@ -481,7 +481,7 @@ registerBlockType(metadata.name, {
 
 		const isDelayed = Number(effectiveDelayMs) > 0;
 		const delayBadgeLabel = isDelayed
-			? `${__('Delayed', 'animation-block-wrapper')} ${formatDelaySeconds(effectiveDelayMs)}`
+			? `${__('Delayed', 'anilibrary')} ${formatDelaySeconds(effectiveDelayMs)}`
 			: '';
 		const activePreset = PRESETS.find((item) => item.id === preset);
 		const presetName = activePreset ? activePreset.label : preset;
@@ -497,14 +497,14 @@ registerBlockType(metadata.name, {
 		return (
 			<>
 				<InspectorControls>
-					<PanelBody title={__('AniLibrary Presets', 'animation-block-wrapper')} initialOpen={true}>
+					<PanelBody title={__('AniLibrary Presets', 'anilibrary')} initialOpen={true}>
 						<SelectControl
-							label={__('Show Presets', 'animation-block-wrapper')}
+							label={__('Show Presets', 'anilibrary')}
 							value={libraryCategory}
 							options={LIBRARY_CATEGORIES}
 							onChange={(value) => setLibraryCategory(value)}
 						/>
-						<div className="abw-preset-grid" role="listbox" aria-label={__('Animation styles', 'animation-block-wrapper')}>
+						<div className="abw-preset-grid" role="listbox" aria-label={__('Animation styles', 'anilibrary')}>
 							{displayPresets.map((item) => {
 								const selected = item.id === preset;
 								const tooltipText = PRESET_DESCRIPTIONS[item.id] || item.label;
@@ -526,22 +526,22 @@ registerBlockType(metadata.name, {
 						</div>
 					</PanelBody>
 
-					<PanelBody title={__('Animation Settings', 'animation-block-wrapper')} initialOpen={false}>
+					<PanelBody title={__('Animation Settings', 'anilibrary')} initialOpen={false}>
 						<SelectControl
-							label={__('Trigger', 'animation-block-wrapper')}
+							label={__('Trigger', 'anilibrary')}
 							value={trigger}
 							options={[
-								{ label: __('When scrolled into view', 'animation-block-wrapper'), value: 'scroll' },
-								{ label: __('When page loads', 'animation-block-wrapper'), value: 'load' },
-								{ label: __('On hover', 'animation-block-wrapper'), value: 'hover' },
-								{ label: __('On click', 'animation-block-wrapper'), value: 'click' },
-								{ label: __('Loop continuously', 'animation-block-wrapper'), value: 'loop' },
+								{ label: __('When scrolled into view', 'anilibrary'), value: 'scroll' },
+								{ label: __('When page loads', 'anilibrary'), value: 'load' },
+								{ label: __('On hover', 'anilibrary'), value: 'hover' },
+								{ label: __('On click', 'anilibrary'), value: 'click' },
+								{ label: __('Loop continuously', 'anilibrary'), value: 'loop' },
 							]}
 							onChange={(value) => setAttributes({ trigger: value, loop: value === 'loop' })}
 						/>
 						{trigger === 'scroll' && (
 							<RangeControl
-								label={__('How much should be visible before it starts (%)', 'animation-block-wrapper')}
+								label={__('How much should be visible before it starts (%)', 'anilibrary')}
 								value={Math.round((Number(threshold) || 0.25) * 100)}
 								onChange={(value) => setAttributes({ threshold: Math.max(0.05, Math.min(1, Number(value || 25) / 100)) })}
 								min={5}
@@ -550,7 +550,7 @@ registerBlockType(metadata.name, {
 							/>
 						)}
 						<RangeControl
-							label={__('Effect strength (%)', 'animation-block-wrapper')}
+							label={__('Effect strength (%)', 'anilibrary')}
 							value={intensity}
 							onChange={(value) => setAttributes({ intensity: Number(value) || 100 })}
 							min={10}
@@ -558,7 +558,7 @@ registerBlockType(metadata.name, {
 							step={10}
 						/>
 						<RangeControl
-							label={__('Animation length (ms)', 'animation-block-wrapper')}
+							label={__('Animation length (ms)', 'anilibrary')}
 							value={duration}
 							onChange={(value) => setAttributes({ duration: Number(value) || 700 })}
 							min={100}
@@ -566,7 +566,7 @@ registerBlockType(metadata.name, {
 							step={50}
 						/>
 						<RangeControl
-							label={__('Start delay (ms)', 'animation-block-wrapper')}
+							label={__('Start delay (ms)', 'anilibrary')}
 							value={delay}
 							onChange={(value) => setAttributes({ delay: Number(value) || 0 })}
 							min={0}
@@ -575,34 +575,34 @@ registerBlockType(metadata.name, {
 						/>
 						{hasAnimationWrapperParent && (
 							<ToggleControl
-								label={__('Add parent delay (nested blocks)', 'animation-block-wrapper')}
+								label={__('Add parent delay (nested blocks)', 'anilibrary')}
 								checked={inheritParentDelay}
 								onChange={(value) => setAttributes({ inheritParentDelay: value })}
-								help={__('Adds the parent block delay to this block delay.', 'animation-block-wrapper')}
+								help={__('Adds the parent block delay to this block delay.', 'anilibrary')}
 							/>
 						)}
 						{hasAnimationWrapperParent && (
 							<ToggleControl
-								label={__('Follow parent animation', 'animation-block-wrapper')}
+								label={__('Follow parent animation', 'anilibrary')}
 								checked={followParentAnimation}
 								onChange={(value) => setAttributes({ followParentAnimation: value })}
-								help={__('Lets this nested block follow the parent effect state (for example, start hidden if parent starts hidden).', 'animation-block-wrapper')}
+								help={__('Lets this nested block follow the parent effect state (for example, start hidden if parent starts hidden).', 'anilibrary')}
 							/>
 						)}
 						<SelectControl
-							label={__('Motion style', 'animation-block-wrapper')}
+							label={__('Motion style', 'anilibrary')}
 							value={easing}
 							options={[
-								{ label: __('Smooth out', 'animation-block-wrapper'), value: 'ease-out' },
-								{ label: __('Smooth in and out', 'animation-block-wrapper'), value: 'ease-in-out' },
-								{ label: __('Steady speed', 'animation-block-wrapper'), value: 'linear' },
-								{ label: __('Extra smooth', 'animation-block-wrapper'), value: 'cubic-bezier(0.65,0,0.35,1)' },
+								{ label: __('Smooth out', 'anilibrary'), value: 'ease-out' },
+								{ label: __('Smooth in and out', 'anilibrary'), value: 'ease-in-out' },
+								{ label: __('Steady speed', 'anilibrary'), value: 'linear' },
+								{ label: __('Extra smooth', 'anilibrary'), value: 'cubic-bezier(0.65,0,0.35,1)' },
 							]}
 							onChange={(value) => setAttributes({ easing: value })}
 						/>
 						{isDirectionalPreset(preset) && (
 							<SelectControl
-								label={__('Direction', 'animation-block-wrapper')}
+								label={__('Direction', 'anilibrary')}
 								value={direction}
 								options={getDirectionOptions(preset)}
 								onChange={(value) => setAttributes({ direction: value })}
@@ -610,18 +610,18 @@ registerBlockType(metadata.name, {
 						)}
 						{preset === 'zoom' && (
 							<SelectControl
-								label={__('Zoom direction', 'animation-block-wrapper')}
+								label={__('Zoom direction', 'anilibrary')}
 								value={zoomMode}
 								options={[
-									{ label: __('In', 'animation-block-wrapper'), value: 'in' },
-									{ label: __('Out', 'animation-block-wrapper'), value: 'out' },
+									{ label: __('In', 'anilibrary'), value: 'in' },
+									{ label: __('Out', 'anilibrary'), value: 'out' },
 								]}
 								onChange={(value) => setAttributes({ zoomMode: value })}
 							/>
 						)}
 						{preset === 'bounce-soft' && (
 							<RangeControl
-								label={__('Number of bounces', 'animation-block-wrapper')}
+								label={__('Number of bounces', 'anilibrary')}
 								value={bounceCount}
 								onChange={(value) => setAttributes({ bounceCount: Number(value) || 1 })}
 								min={1}
@@ -631,34 +631,34 @@ registerBlockType(metadata.name, {
 						)}
 						{trigger === 'click' && (
 							<ToggleControl
-								label={__('Click again to reverse', 'animation-block-wrapper')}
+								label={__('Click again to reverse', 'anilibrary')}
 								checked={clickToggle}
 								onChange={(value) => setAttributes({ clickToggle: value })}
 							/>
 						)}
 						{trigger === 'hover' && HOVER_HIDE_SUPPORTED_PRESETS.has(preset) && (
 							<ToggleControl
-								label={__('Hide until hover', 'animation-block-wrapper')}
+								label={__('Hide until hover', 'anilibrary')}
 								checked={hideUntilHover}
 								onChange={(value) => setAttributes({ hideUntilHover: value })}
-								help={__('Keeps this hidden until you hover.', 'animation-block-wrapper')}
+								help={__('Keeps this hidden until you hover.', 'anilibrary')}
 							/>
 						)}
 						{trigger !== 'loop' && (
 							<ToggleControl
-								label={__('Play once', 'animation-block-wrapper')}
+								label={__('Play once', 'anilibrary')}
 								checked={once}
 								onChange={(value) => setAttributes({ once: value })}
 							/>
 						)}
 						{detectedKind === 'text' && (
 							<SelectControl
-								label={__('Text animation mode', 'animation-block-wrapper')}
+								label={__('Text animation mode', 'anilibrary')}
 								value={textGranularity}
 								options={[
-									{ label: __('Word by word', 'animation-block-wrapper'), value: 'word' },
-									{ label: __('Letter by letter', 'animation-block-wrapper'), value: 'character' },
-									{ label: __('Line by line', 'animation-block-wrapper'), value: 'line' },
+									{ label: __('Word by word', 'anilibrary'), value: 'word' },
+									{ label: __('Letter by letter', 'anilibrary'), value: 'character' },
+									{ label: __('Line by line', 'anilibrary'), value: 'line' },
 								]}
 								onChange={(value) =>
 									setAttributes({
@@ -670,7 +670,7 @@ registerBlockType(metadata.name, {
 						)}
 						{detectedKind === 'text' && trigger !== 'loop' && (
 							<RangeControl
-								label={__('Gap between words/letters (ms)', 'animation-block-wrapper')}
+								label={__('Gap between words/letters (ms)', 'anilibrary')}
 								value={stagger}
 								onChange={(value) => setAttributes({ stagger: Number(value) || 0 })}
 								min={0}

@@ -10,7 +10,7 @@
  * Author URI:        https://ff.design
  * License:           GPL-2.0-or-later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
- * Text Domain:       animation-block-wrapper
+ * Text Domain:       anilibrary
  * Domain Path:       /languages
  *
  * @package AnimationBlockWrapper
@@ -90,7 +90,7 @@ function abw_register_assets() {
 	);
 
 	if ( function_exists( 'wp_set_script_translations' ) ) {
-		wp_set_script_translations( 'abw-editor-script', 'animation-block-wrapper', ABW_PLUGIN_DIR . 'languages' );
+		wp_set_script_translations( 'abw-editor-script', 'anilibrary', ABW_PLUGIN_DIR . 'languages' );
 	}
 }
 

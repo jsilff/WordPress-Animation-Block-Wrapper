@@ -8,7 +8,7 @@
   "icon": "format-image",
   "description": "Wrap any block and add easy animations.",
   "keywords": ["animation", "wrapper", "motion", "gutenberg"],
-  "textdomain": "animation-block-wrapper",
+  "textdomain": "anilibrary",
   "supports": {
     "html": false,
     "anchor": true,
