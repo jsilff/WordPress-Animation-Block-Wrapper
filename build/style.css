@@ -1,0 +1,42 @@
+.wp-block-animation-block-wrapper-wrapper.abw-wrapper {
+	position: relative;
+}
+
+.wp-block-animation-block-wrapper-wrapper.abw-wrapper > * {
+	will-change: opacity, transform, filter;
+}
+
+.wp-block-animation-block-wrapper-wrapper.abw-wrapper.abw-hide-until-hover > * {
+	opacity: 0 !important;
+}
+
+.wp-block-animation-block-wrapper-wrapper.abw-wrapper .abw-text-unit {
+	display: inline-block;
+	will-change: opacity, transform, filter;
+}
+
+.wp-block-animation-block-wrapper-wrapper.abw-wrapper .abw-text-word {
+	display: inline-block;
+}
+
+.wp-block-animation-block-wrapper-wrapper.abw-wrapper .abw-text-character-mode,
+.wp-block-animation-block-wrapper-wrapper.abw-wrapper .abw-text-character-mode .abw-text-word,
+.wp-block-animation-block-wrapper-wrapper.abw-wrapper .abw-text-character-mode .abw-text-unit-char {
+	font-kerning: none;
+	font-variant-ligatures: none;
+}
+
+.wp-block-animation-block-wrapper-wrapper.abw-wrapper .abw-text-unit-line {
+	display: block;
+	white-space: pre-wrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.wp-block-animation-block-wrapper-wrapper.abw-wrapper > * {
+		animation: none !important;
+		transition: none !important;
+		transform: none !important;
+		opacity: 1 !important;
+		filter: none !important;
+	}
+}

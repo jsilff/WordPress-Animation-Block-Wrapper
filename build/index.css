@@ -1,0 +1,108 @@
+.wp-block-animation-block-wrapper-wrapper.abw-editor-kind-text,
+.wp-block-animation-block-wrapper-wrapper.abw-editor-kind-media,
+.wp-block-animation-block-wrapper-wrapper.abw-editor-kind-layout,
+.wp-block-animation-block-wrapper-wrapper.abw-editor-kind-mixed {
+	outline: 1px dashed #d6d6d6;
+	outline-offset: 6px;
+	padding: 8px;
+}
+
+.wp-block-animation-block-wrapper-wrapper.abw-editor-drop-zone {
+	min-height: 48px;
+}
+
+.wp-block-animation-block-wrapper-wrapper.abw-editor-is-delayed {
+	position: relative;
+}
+
+.wp-block-animation-block-wrapper-wrapper .abw-editor-badges {
+	position: absolute;
+	top: -10px;
+	right: 8px;
+	z-index: 2;
+	display: flex;
+	gap: 6px;
+	pointer-events: none;
+}
+
+.wp-block-animation-block-wrapper-wrapper .abw-editor-badge {
+	padding: 2px 7px;
+	border-radius: 999px;
+	font-size: 11px;
+	font-weight: 600;
+	line-height: 1.5;
+	letter-spacing: 0.02em;
+	white-space: nowrap;
+}
+
+.wp-block-animation-block-wrapper-wrapper .abw-editor-badge.is-delay {
+	background: #3858e9;
+	color: #fff;
+}
+
+.wp-block-animation-block-wrapper-wrapper .abw-editor-badge.is-preset {
+	background: #f0f6ff;
+	color: #1e1e1e;
+	border: 1px solid #c3d8ff;
+}
+
+.abw-preset-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 8px;
+	margin-top: 8px;
+	margin-bottom: 8px;
+}
+
+.abw-preset-card {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px;
+	border: 1px solid #dcdcde;
+	background: #fff;
+	border-radius: 6px;
+	cursor: pointer;
+	text-align: left;
+}
+
+.abw-preset-card:hover {
+	border-color: #3858e9;
+}
+
+.abw-preset-card.is-selected {
+	border-color: #3858e9;
+	box-shadow: inset 0 0 0 1px #3858e9;
+	background: #f6f7ff;
+}
+
+.abw-preset-card-label {
+	font-size: 12px;
+	line-height: 1.3;
+	font-weight: 500;
+	color: #1e1e1e;
+}
+
+.abw-preset-svg {
+	width: 26px;
+	height: 26px;
+	flex: 0 0 26px;
+}
+
+.abw-preset-svg-frame {
+	fill: #f9f9fa;
+	stroke: #dcdcde;
+	stroke-width: 1;
+}
+
+.abw-preset-svg-line {
+	fill: none;
+	stroke: #1f2937;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+	stroke-width: 1.6;
+}
+
+.abw-preset-svg-solid {
+	fill: #1f2937;
+}

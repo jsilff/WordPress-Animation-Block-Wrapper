@@ -1,0 +1,13 @@
+.git/
+.github/
+.gitignore
+.gitattributes
+.DS_Store
+node_modules/
+src/
+package-lock.json
+package.json
+README.md
+CHANGELOG.md
+CONTRIBUTING.md
+SECURITY.md

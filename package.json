@@ -1,0 +1,11 @@
+{
+  "name": "animation-block-wrapper",
+  "version": "1.0.0",
+  "description": "MIT-licensed Gutenberg wrapper block with lightweight, content-aware animations.",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "lint": "echo 'Add lint tooling as needed'",
+    "test": "echo 'Add automated tests as needed'"
+  }
+}

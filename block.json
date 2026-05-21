@@ -1,0 +1,103 @@
+{
+  "$schema": "https://schemas.wp.org/trunk/block.json",
+  "apiVersion": 3,
+  "name": "animation-block-wrapper/wrapper",
+  "version": "1.0.0",
+  "title": "AniLibrary",
+  "category": "design",
+  "icon": "format-image",
+  "description": "Wrap any block and add easy animations.",
+  "keywords": ["animation", "wrapper", "motion", "gutenberg"],
+  "textdomain": "animation-block-wrapper",
+  "supports": {
+    "html": false,
+    "anchor": true,
+    "spacing": {
+      "margin": true,
+      "padding": true
+    },
+    "layout": true
+  },
+  "attributes": {
+    "preset": {
+      "type": "string",
+      "default": "fade"
+    },
+    "contentKind": {
+      "type": "string",
+      "default": "mixed"
+    },
+    "trigger": {
+      "type": "string",
+      "default": "scroll"
+    },
+    "intensity": {
+      "type": "number",
+      "default": 100
+    },
+    "direction": {
+      "type": "string",
+      "default": "up"
+    },
+    "zoomMode": {
+      "type": "string",
+      "default": "in"
+    },
+    "bounceCount": {
+      "type": "number",
+      "default": 1
+    },
+    "duration": {
+      "type": "number",
+      "default": 700
+    },
+    "delay": {
+      "type": "number",
+      "default": 0
+    },
+    "stagger": {
+      "type": "number",
+      "default": 0
+    },
+    "easing": {
+      "type": "string",
+      "default": "ease-out"
+    },
+    "once": {
+      "type": "boolean",
+      "default": true
+    },
+    "threshold": {
+      "type": "number",
+      "default": 0.25
+    },
+    "loop": {
+      "type": "boolean",
+      "default": false
+    },
+    "clickToggle": {
+      "type": "boolean",
+      "default": false
+    },
+    "hideUntilHover": {
+      "type": "boolean",
+      "default": false
+    },
+    "inheritParentDelay": {
+      "type": "boolean",
+      "default": false
+    },
+    "followParentAnimation": {
+      "type": "boolean",
+      "default": false
+    },
+    "textGranularity": {
+      "type": "string",
+      "default": "word"
+    }
+  },
+  "editorScript": "file:./build/index.js",
+  "editorStyle": "file:./build/index.css",
+  "style": "file:./build/style.css",
+  "viewScript": "file:./build/view.js"
+}
