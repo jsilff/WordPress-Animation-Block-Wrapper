@@ -2,7 +2,7 @@
   "$schema": "https://schemas.wp.org/trunk/block.json",
   "apiVersion": 3,
   "name": "animation-block-wrapper/wrapper",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "title": "AniLibrary",
   "category": "design",
   "icon": "format-image",
@@ -94,6 +94,46 @@
     "textGranularity": {
       "type": "string",
       "default": "word"
+    },
+    "mediaScrollPlaybackDirection": {
+      "type": "string",
+      "default": "forward"
+    },
+    "mediaScrollDirectionLimit": {
+      "type": "string",
+      "default": "both"
+    },
+    "mediaScrollPlaybackCycles": {
+      "type": "number",
+      "default": 1
+    },
+    "mediaScrollProgressSource": {
+      "type": "string",
+      "default": "viewport"
+    },
+    "mediaScrollViewportEdge": {
+      "type": "string",
+      "default": "top"
+    },
+    "mediaScrollViewportStart": {
+      "type": "number",
+      "default": 90
+    },
+    "mediaScrollViewportEnd": {
+      "type": "number",
+      "default": 10
+    },
+    "mediaScrollStartAtPageTop": {
+      "type": "boolean",
+      "default": false
+    },
+    "mediaScrollDocumentStart": {
+      "type": "number",
+      "default": 0
+    },
+    "mediaScrollDocumentEnd": {
+      "type": "number",
+      "default": 100
     }
   },
   "editorScript": "file:./build/index.js",

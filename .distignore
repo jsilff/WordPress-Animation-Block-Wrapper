@@ -3,6 +3,7 @@
 .gitignore
 .gitattributes
 .DS_Store
+*.zip
 node_modules/
 src/
 package-lock.json
@@ -11,3 +12,5 @@ README.md
 CHANGELOG.md
 CONTRIBUTING.md
 SECURITY.md
+RELEASING.md
+.wordpress-org/

@@ -4,7 +4,7 @@ Tags: gutenberg, block, animation, scroll, motion
 Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.0.0
+Stable tag: 1.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -18,6 +18,10 @@ Features:
 
 * Works with core blocks, groups, columns, and most custom blocks.
 * Choose when animations start: page load, scroll into view, hover, click, or loop.
+* Use the Scrub media preset to move through a video or GIF as someone scrolls.
+* GIFs can move in steps; videos give the smoothest result.
+* Start top-of-page scrub media at the beginning when the page first loads.
+* Repeat scrubbed media playback across a scroll range for multiple visible cycles.
 * Suggests animation styles based on the content inside.
 * Respects users who prefer reduced motion.
 * Lightweight front-end output.
@@ -54,6 +58,14 @@ AniLibrary automatically reduces motion for those users.
 
 == Changelog ==
 
+= 1.1.0 =
+* Added the Scrub media preset for videos and animated GIFs.
+* Added controls for forward/backward scroll playback, one-way scroll, and once-only locking.
+* Added screen, page, and parent block scroll sources for fixed and nested media layouts.
+* Added beginning-at-page-top behavior for hero, fixed, and sticky media.
+* Added a playback cycles control for repeating scrubbed media as users scroll.
+* Added animated GIF support with graceful fallback when a browser cannot step through the GIF.
+
 = 1.0.0 =
 * Initial release.
 * Added wrapper block with load/scroll/hover/click/loop triggers.
@@ -61,6 +73,9 @@ AniLibrary automatically reduces motion for those users.
 * Added reduced-motion-safe runtime defaults.
 
 == Upgrade Notice ==
+
+= 1.1.0 =
+Adds scroll-controlled video playback and contextual media scroll controls.
 
 = 1.0.0 =
 Initial public release.

@@ -18,11 +18,21 @@ import { useEffect, useMemo, useState } from '@wordpress/element';
 
 import metadata from '../block.json';
 
+const ANILIBRARY_ICON = (
+	<svg viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+		<path d="M27.5 0H4.5C2.01472 0 0 2.01472 0 4.5V27.5C0 29.9853 2.01472 32 4.5 32H27.5C29.9853 32 32 29.9853 32 27.5V4.5C32 2.01472 29.9853 0 27.5 0Z" fill="black" />
+		<path d="M6.55189 28.4297V19.9262H8.00798V27.0785H11.6191V28.4297H6.55189ZM13.2221 28.4297V27.1018H15.4586V23.3393H13.5133V22.0229H16.8565V27.1018H18.8368V28.4297H13.2221ZM16.0411 20.9513C15.746 20.9513 15.513 20.8775 15.3421 20.7299C15.1713 20.5746 15.0859 20.3688 15.0859 20.1126C15.0859 19.8563 15.1713 19.6544 15.3421 19.5068C15.513 19.3515 15.746 19.2738 16.0411 19.2738C16.3362 19.2738 16.5691 19.3515 16.74 19.5068C16.9108 19.6544 16.9963 19.8563 16.9963 20.1126C16.9963 20.3688 16.9108 20.5746 16.74 20.7299C16.5691 20.8775 16.3362 20.9513 16.0411 20.9513ZM23.3636 28.5462C22.8355 28.5462 22.4161 28.3987 22.1055 28.1036C21.7949 27.8007 21.6395 27.3891 21.6395 26.8688L21.9657 27.2066H21.6395V28.4297H20.2184V19.9262H21.6745V21.7201L21.6279 23.2461H21.9657L21.6395 23.5839C21.6395 23.0636 21.7949 22.6559 22.1055 22.3608C22.4161 22.0579 22.8355 21.9065 23.3636 21.9065C24.0081 21.9065 24.5245 22.1278 24.9128 22.5704C25.3011 23.0131 25.4953 23.6111 25.4953 24.3643V26.1C25.4953 26.8455 25.3011 27.4396 24.9128 27.8823C24.5245 28.3249 24.0081 28.5462 23.3636 28.5462ZM22.851 27.2882C23.2238 27.2882 23.515 27.1795 23.7247 26.962C23.9343 26.7446 24.0392 26.4339 24.0392 26.0301V24.4226C24.0392 24.0188 23.9343 23.7081 23.7247 23.4907C23.515 23.2732 23.2238 23.1645 22.851 23.1645C22.486 23.1645 22.1987 23.2771 21.989 23.5023C21.7793 23.7198 21.6745 24.0265 21.6745 24.4226V26.0301C21.6745 26.4262 21.7793 26.7368 21.989 26.962C22.1987 27.1795 22.486 27.2882 22.851 27.2882Z" fill="white" />
+		<rect x="3.375" y="2.375" width="24.7478" height="14.7099" stroke="white" strokeWidth="0.75" strokeDasharray="1.61 1.61" />
+		<path d="M6.06461 14L8.22167 5.44212H10.1091L12.2779 14H10.7773L10.3084 11.925H8.0341L7.56517 14H6.06461ZM8.30373 10.7292H10.0388L9.52293 8.43152C9.43696 8.04856 9.36272 7.70468 9.30019 7.39988C9.23767 7.08727 9.19469 6.86062 9.17124 6.71994C9.14779 6.86062 9.10481 7.08727 9.04229 7.39988C8.98758 7.70468 8.91333 8.04465 8.81955 8.41979L8.30373 10.7292ZM13.5863 14V7.55228H15.0165V8.78321H15.4151L15.0165 9.12318C15.0165 8.59173 15.1689 8.17752 15.4737 7.88053C15.7863 7.58355 16.2123 7.43505 16.7515 7.43505C17.3846 7.43505 17.8887 7.64607 18.2638 8.0681C18.6468 8.49013 18.8382 9.05675 18.8382 9.76795V14H17.3728V9.92035C17.3728 9.52958 17.2712 9.22869 17.068 9.01767C16.8648 8.80666 16.5796 8.70115 16.2123 8.70115C15.8527 8.70115 15.5675 8.81057 15.3565 9.0294C15.1533 9.24823 15.0517 9.56085 15.0517 9.96725V14H13.5863ZM20.6038 14V12.6636H22.8547V8.877H20.8969V7.55228H24.2615V12.6636H26.2544V14H20.6038ZM23.4408 6.47376C23.1439 6.47376 22.9094 6.39951 22.7375 6.25102C22.5655 6.09471 22.4795 5.8876 22.4795 5.62969C22.4795 5.37178 22.5655 5.16858 22.7375 5.02009C22.9094 4.86378 23.1439 4.78563 23.4408 4.78563C23.7378 4.78563 23.9723 4.86378 24.1442 5.02009C24.3162 5.16858 24.4021 5.37178 24.4021 5.62969C24.4021 5.8876 24.3162 6.09471 24.1442 6.25102C23.9723 6.39951 23.7378 6.47376 23.4408 6.47376Z" fill="white" />
+	</svg>
+);
+
 const PRESETS = [
 	{ id: 'fade', label: __('Fade', 'anilibrary'), kinds: ['text', 'mixed', 'layout', 'media'], category: 'entrance', preview: 'up' },
 	{ id: 'slide', label: __('Slide', 'anilibrary'), kinds: ['text', 'mixed', 'layout', 'media'], category: 'entrance', preview: 'up-strong' },
 	{ id: 'zoom', label: __('Zoom', 'anilibrary'), kinds: ['media', 'mixed', 'layout', 'text'], category: 'entrance', preview: 'zoom-in' },
 	{ id: 'blur-in', label: __('Blur', 'anilibrary'), kinds: ['media', 'mixed', 'text'], category: 'entrance', preview: 'blur' },
+	{ id: 'scroll-media', label: __('Scrub', 'anilibrary'), kinds: ['text', 'mixed', 'layout', 'media'], category: 'media', preview: 'scroll-media' },
 	{ id: 'rotate-in', label: __('Rotate', 'anilibrary'), kinds: ['mixed', 'layout', 'media', 'text'], category: 'entrance', preview: 'rotate' },
 	{ id: 'flip', label: __('Flip', 'anilibrary'), kinds: ['mixed', 'layout', 'media', 'text'], category: 'entrance', preview: 'flip' },
 	{ id: 'text-rise', label: __('Rise', 'anilibrary'), kinds: ['text', 'mixed'], category: 'text', preview: 'text-rise' },
@@ -35,7 +45,7 @@ const PRESETS = [
 
 const RECOMMENDATIONS = {
 	text: ['text-rise', 'fade', 'letter-pop', 'word-cascade'],
-	media: ['zoom', 'blur-in', 'slide', 'fade'],
+	media: ['scroll-media', 'zoom', 'blur-in', 'slide'],
 	layout: ['fade', 'slide', 'rotate-in', 'pulse-soft'],
 	mixed: ['fade', 'zoom', 'slide', 'pulse-soft'],
 };
@@ -45,6 +55,7 @@ const PRESET_DESCRIPTIONS = {
 	slide: __('Slides into place.', 'anilibrary'),
 	zoom: __('Zooms in or out to draw attention.', 'anilibrary'),
 	'blur-in': __('Starts soft and sharpens into focus.', 'anilibrary'),
+	'scroll-media': __('Lets scrolling move through a video or GIF.', 'anilibrary'),
 	'rotate-in': __('Rotates in gently.', 'anilibrary'),
 	flip: __('Flips in from a chosen direction.', 'anilibrary'),
 	'text-rise': __('Text moves in from up or down.', 'anilibrary'),
@@ -58,6 +69,7 @@ const PRESET_DESCRIPTIONS = {
 const LIBRARY_CATEGORIES = [
 	{ value: 'recommended', label: __('Recommended', 'anilibrary') },
 	{ value: 'entrance', label: __('Entrance', 'anilibrary') },
+	{ value: 'media', label: __('Media', 'anilibrary') },
 	{ value: 'text', label: __('Text', 'anilibrary') },
 	{ value: 'loop', label: __('Loop / Attention', 'anilibrary') },
 	{ value: 'all', label: __('All', 'anilibrary') },
@@ -99,6 +111,10 @@ function isDirectionalPreset(presetId) {
 	return ['fade', 'slide', 'rotate-in', 'float-soft', 'flip', 'text-rise'].includes(presetId);
 }
 
+function isMediaScrollPreset(presetId) {
+	return presetId === 'scroll-media';
+}
+
 function formatDelaySeconds(ms) {
 	const seconds = Math.max(0, Number(ms) || 0) / 1000;
 	const decimals = seconds < 1 ? 2 : 1;
@@ -109,6 +125,7 @@ function formatDelaySeconds(ms) {
 function getTriggerBadgeLabel(trigger) {
 	const labels = {
 		scroll: __('Scroll', 'anilibrary'),
+		'scroll-media': __('Scroll Media', 'anilibrary'),
 		load: __('Load', 'anilibrary'),
 		hover: __('Hover', 'anilibrary'),
 		click: __('Click', 'anilibrary'),
@@ -158,6 +175,7 @@ function PresetPreview({ type }) {
 		'up-strong': 'M231.39,123.06A8,8,0,0,1,224,128H184v80a16,16,0,0,1-16,16H88a16,16,0,0,1-16-16V128H32a8,8,0,0,1-5.66-13.66l96-96a8,8,0,0,1,11.32,0l96,96A8,8,0,0,1,231.39,123.06Z',
 		'zoom-in': 'M144,120v88a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V120a8,8,0,0,1,8-8h88A8,8,0,0,1,144,120Zm64,56a8,8,0,0,0-8,8v16H176a8,8,0,0,0,0,16h24a16,16,0,0,0,16-16V184A8,8,0,0,0,208,176Zm0-72a8,8,0,0,0-8,8v32a8,8,0,0,0,16,0V112A8,8,0,0,0,208,104Zm-8-64H184a8,8,0,0,0,0,16h16V72a8,8,0,0,0,16,0V56A16,16,0,0,0,200,40Zm-56,0H112a8,8,0,0,0,0,16h32a8,8,0,0,0,0-16ZM48,88a8,8,0,0,0,8-8V56H72a8,8,0,0,0,0-16H56A16,16,0,0,0,40,56V80A8,8,0,0,0,48,88Z',
 		'zoom-out': 'M144,120v88a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V120a8,8,0,0,1,8-8h88A8,8,0,0,1,144,120Zm64,56a8,8,0,0,0-8,8v16H176a8,8,0,0,0,0,16h24a16,16,0,0,0,16-16V184A8,8,0,0,0,208,176Zm0-72a8,8,0,0,0-8,8v32a8,8,0,0,0,16,0V112A8,8,0,0,0,208,104Zm-8-64H184a8,8,0,0,0,0,16h16V72a8,8,0,0,0,16,0V56A16,16,0,0,0,200,40Zm-56,0H112a8,8,0,0,0,0,16h32a8,8,0,0,0,0-16ZM48,88a8,8,0,0,0,8-8V56H72a8,8,0,0,0,0-16H56A16,16,0,0,0,40,56V80A8,8,0,0,0,48,88Z',
+		'scroll-media': 'M144,16H112A64.07,64.07,0,0,0,48,80v96a64.07,64.07,0,0,0,64,64h32a64.07,64.07,0,0,0,64-64V80A64.07,64.07,0,0,0,144,16Zm2.34,146.34a8,8,0,0,1,11.32,11.32l-24,24a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L120,172.69V83.31L109.66,93.66A8,8,0,0,1,98.34,82.34l24-24a8,8,0,0,1,11.32,0l24,24a8,8,0,0,1-11.32,11.32L136,83.31v89.38Z',
 		blur: 'M232,128A104,104,0,0,0,54.46,54.46,104,104,0,0,0,128,232h.09A104,104,0,0,0,232,128ZM49.18,88.92l51.21,9.35L46.65,161.53A88.39,88.39,0,0,1,49.18,88.92Zm160.17,5.54a88.41,88.41,0,0,1-2.53,72.62l-51.21-9.35Zm-8.08-15.2L167.55,119,139.63,40.78a87.38,87.38,0,0,1,50.6,25A88.74,88.74,0,0,1,201.27,79.26ZM122.43,40.19l17.51,49L58.3,74.32a89.28,89.28,0,0,1,7.47-8.55A87.37,87.37,0,0,1,122.43,40.19ZM54.73,176.74,88.45,137l27.92,78.18a88,88,0,0,1-61.64-38.48Zm78.84,39.06-17.51-49L139.14,171h0l58.52,10.69a87.5,87.5,0,0,1-64.13,34.12Z',
 		rotate: 'M248,144a8,8,0,0,1-16,0,96.11,96.11,0,0,0-96-96c-1.4,0-2.8,0-4.18.1A80.06,80.06,0,0,0,56,128a64.07,64.07,0,0,0,64,64,44.05,44.05,0,0,0,44-44,32,32,0,0,0-32-32,8,8,0,0,0,0,16,16,16,0,0,1,16,16,28,28,0,0,1-28,28,48.05,48.05,0,0,1-48-48,64.07,64.07,0,0,1,64-64,80.09,80.09,0,0,1,80,80,88.1,88.1,0,0,1-88,88,96.11,96.11,0,0,1-96-96A104.11,104.11,0,0,1,136,32,112.12,112.12,0,0,1,248,144Z',
 		flip: 'M120,40V200a16,16,0,0,1-16,16H40a16,16,0,0,1-14.78-22.15l64-159.93.06-.14A16,16,0,0,1,120,40ZM229.33,208.84A16,16,0,0,1,216,216H152a16,16,0,0,1-16-16V40a16,16,0,0,1,30.74-6.23l.06.14,64,159.93A16,16,0,0,1,229.33,208.84ZM216,200l-.06-.15L152,40V200Z',
@@ -225,8 +243,56 @@ function detectContentKind(innerBlocks) {
 	return 'mixed';
 }
 
+function detectScrollControlledMedia(innerBlocks) {
+	if (!innerBlocks || !innerBlocks.length) {
+		return { hasVideo: false, hasAnimatedGif: false };
+	}
+
+	const stack = [...innerBlocks];
+	let hasVideo = false;
+	let hasAnimatedGif = false;
+
+	while (stack.length) {
+		const block = stack.shift();
+		if (!block) {
+			continue;
+		}
+
+		const attrs = block.attributes || {};
+		const name = block.name || '';
+		const candidateUrls = [
+			attrs.url,
+			attrs.src,
+			attrs.href,
+			attrs.mediaUrl,
+			attrs.poster,
+			attrs.id && attrs.url,
+		].filter(Boolean);
+
+		if (name === 'core/video' || attrs.type === 'video' || attrs.mediaType === 'video') {
+			hasVideo = true;
+		}
+
+		if (
+			name === 'core/image' ||
+			name === 'core/gallery' ||
+			name === 'core/cover' ||
+			name === 'core/media-text'
+		) {
+			hasAnimatedGif = candidateUrls.some((url) => /\.gif(?:[?#].*)?$/i.test(String(url)));
+		}
+
+		if (Array.isArray(block.innerBlocks) && block.innerBlocks.length) {
+			stack.push(...block.innerBlocks);
+		}
+	}
+
+	return { hasVideo, hasAnimatedGif };
+}
+
 registerBlockType(metadata.name, {
 	...metadata,
+	icon: ANILIBRARY_ICON,
 	edit: ({ attributes, setAttributes, clientId }) => {
 		const {
 			preset,
@@ -248,6 +314,16 @@ registerBlockType(metadata.name, {
 			textGranularity,
 			inheritParentDelay,
 			followParentAnimation,
+			mediaScrollPlaybackDirection,
+			mediaScrollDirectionLimit,
+			mediaScrollPlaybackCycles,
+			mediaScrollProgressSource,
+			mediaScrollViewportEdge,
+			mediaScrollViewportStart,
+			mediaScrollViewportEnd,
+			mediaScrollStartAtPageTop,
+			mediaScrollDocumentStart,
+			mediaScrollDocumentEnd,
 		} = attributes;
 
 		const [libraryCategory, setLibraryCategory] = useState('recommended');
@@ -307,16 +383,22 @@ registerBlockType(metadata.name, {
 		);
 
 		const detectedKind = useMemo(() => detectContentKind(innerBlocks), [innerBlocks]);
+		const detectedScrollMedia = useMemo(() => detectScrollControlledMedia(innerBlocks), [innerBlocks]);
+		const hasScrollControlledMedia = detectedScrollMedia.hasVideo || detectedScrollMedia.hasAnimatedGif;
 
 		const filteredPresets = useMemo(
-			() => PRESETS.filter((item) => item.kinds.includes(detectedKind)),
-			[detectedKind]
+			() => PRESETS.filter((item) =>
+				item.kinds.includes(detectedKind) &&
+				(!isMediaScrollPreset(item.id) || hasScrollControlledMedia)
+			),
+			[detectedKind, hasScrollControlledMedia]
 		);
 
 		const recommended = RECOMMENDATIONS[detectedKind] || RECOMMENDATIONS.mixed;
 		const primaryRecommendation = recommended.find((id) =>
 			filteredPresets.some((item) => item.id === id)
 		);
+		const isMediaScroll = isMediaScrollPreset(preset);
 
 		const displayPresets = useMemo(() => {
 			const recommendedSet = new Set(recommended);
@@ -352,6 +434,12 @@ registerBlockType(metadata.name, {
 			const hasPreset = filteredPresets.some((item) => item.id === preset);
 			if (!hasPreset && filteredPresets.length) {
 				updates.preset = primaryRecommendation || filteredPresets[0].id;
+				shouldUpdate = true;
+			}
+
+			if (isMediaScroll && hasScrollControlledMedia && trigger !== 'scroll-media') {
+				updates.trigger = 'scroll-media';
+				updates.loop = false;
 				shouldUpdate = true;
 			}
 
@@ -403,6 +491,11 @@ registerBlockType(metadata.name, {
 				shouldUpdate = true;
 			}
 
+			if (isMediaScroll && !hasScrollControlledMedia) {
+				updates.trigger = 'scroll';
+				shouldUpdate = true;
+			}
+
 			if (!hasAnimationWrapperParent && inheritParentDelay) {
 				updates.inheritParentDelay = false;
 				shouldUpdate = true;
@@ -420,6 +513,37 @@ registerBlockType(metadata.name, {
 
 			if (trigger !== 'loop' && loop) {
 				updates.loop = false;
+				shouldUpdate = true;
+			}
+
+			if (!['forward', 'backward'].includes(mediaScrollPlaybackDirection)) {
+				updates.mediaScrollPlaybackDirection = 'forward';
+				shouldUpdate = true;
+			}
+
+			if (!['both', 'down', 'up'].includes(mediaScrollDirectionLimit)) {
+				updates.mediaScrollDirectionLimit = 'both';
+				shouldUpdate = true;
+			}
+
+			if (!['viewport', 'document', 'parent'].includes(mediaScrollProgressSource)) {
+				updates.mediaScrollProgressSource = 'viewport';
+				shouldUpdate = true;
+			}
+
+			if (!['top', 'bottom'].includes(mediaScrollViewportEdge)) {
+				updates.mediaScrollViewportEdge = 'top';
+				shouldUpdate = true;
+			}
+
+			if (
+				isMediaScroll &&
+				mediaScrollProgressSource === 'viewport' &&
+				!mediaScrollStartAtPageTop &&
+				Number(mediaScrollViewportStart) < Number(mediaScrollViewportEnd)
+			) {
+				updates.mediaScrollViewportStart = Number(mediaScrollViewportEnd) || 0;
+				updates.mediaScrollViewportEnd = Number(mediaScrollViewportStart) || 0;
 				shouldUpdate = true;
 			}
 
@@ -477,7 +601,7 @@ registerBlockType(metadata.name, {
 			if (shouldUpdate) {
 				setAttributes(updates);
 			}
-		}, [bounceCount, contentKind, detectedKind, direction, filteredPresets, followParentAnimation, hasAnimationWrapperParent, hideUntilHover, inheritParentDelay, loop, once, preset, primaryRecommendation, setAttributes, stagger, textGranularity, trigger, zoomMode]);
+		}, [bounceCount, contentKind, detectedKind, direction, filteredPresets, followParentAnimation, hasAnimationWrapperParent, hasScrollControlledMedia, hideUntilHover, inheritParentDelay, isMediaScroll, loop, mediaScrollDirectionLimit, mediaScrollPlaybackDirection, mediaScrollProgressSource, mediaScrollStartAtPageTop, mediaScrollViewportEdge, mediaScrollViewportEnd, mediaScrollViewportStart, once, preset, primaryRecommendation, setAttributes, stagger, textGranularity, trigger, zoomMode]);
 
 		const isDelayed = Number(effectiveDelayMs) > 0;
 		const delayBadgeLabel = isDelayed
@@ -485,7 +609,8 @@ registerBlockType(metadata.name, {
 			: '';
 		const activePreset = PRESETS.find((item) => item.id === preset);
 		const presetName = activePreset ? activePreset.label : preset;
-		const presetBadgeLabel = `${presetName}: ${getTriggerBadgeLabel(trigger)}`;
+		const effectiveTrigger = isMediaScroll ? 'scroll-media' : trigger;
+		const presetBadgeLabel = `${presetName}: ${getTriggerBadgeLabel(effectiveTrigger)}`;
 		const blockProps = useBlockProps({
 			className: `abw-editor-kind-${detectedKind} abw-editor-drop-zone${isDelayed ? ' abw-editor-is-delayed' : ''}`,
 		});
@@ -513,7 +638,13 @@ registerBlockType(metadata.name, {
 										<button
 											type="button"
 											className={`abw-preset-card ${selected ? 'is-selected' : ''}`}
-											onClick={() => setAttributes({ preset: item.id })}
+											onClick={() =>
+												setAttributes(
+													isMediaScrollPreset(item.id)
+														? { preset: item.id, trigger: 'scroll-media', loop: false, once: false }
+														: { preset: item.id, trigger: trigger === 'scroll-media' ? 'scroll' : trigger }
+												)
+											}
 											aria-pressed={selected}
 											aria-label={`${item.label}: ${tooltipText}`}
 										>
@@ -527,18 +658,20 @@ registerBlockType(metadata.name, {
 					</PanelBody>
 
 					<PanelBody title={__('Animation Settings', 'anilibrary')} initialOpen={false}>
-						<SelectControl
-							label={__('Trigger', 'anilibrary')}
-							value={trigger}
-							options={[
-								{ label: __('When scrolled into view', 'anilibrary'), value: 'scroll' },
-								{ label: __('When page loads', 'anilibrary'), value: 'load' },
-								{ label: __('On hover', 'anilibrary'), value: 'hover' },
-								{ label: __('On click', 'anilibrary'), value: 'click' },
-								{ label: __('Loop continuously', 'anilibrary'), value: 'loop' },
-							]}
-							onChange={(value) => setAttributes({ trigger: value, loop: value === 'loop' })}
-						/>
+						{!isMediaScroll && (
+							<SelectControl
+								label={__('Trigger', 'anilibrary')}
+								value={trigger === 'scroll-media' ? 'scroll' : trigger}
+								options={[
+									{ label: __('When scrolled into view', 'anilibrary'), value: 'scroll' },
+									{ label: __('When page loads', 'anilibrary'), value: 'load' },
+									{ label: __('On hover', 'anilibrary'), value: 'hover' },
+									{ label: __('On click', 'anilibrary'), value: 'click' },
+									{ label: __('Loop continuously', 'anilibrary'), value: 'loop' },
+								]}
+								onChange={(value) => setAttributes({ trigger: value, loop: value === 'loop' })}
+							/>
+						)}
 						{trigger === 'scroll' && (
 							<RangeControl
 								label={__('How much should be visible before it starts (%)', 'anilibrary')}
@@ -549,30 +682,146 @@ registerBlockType(metadata.name, {
 								step={5}
 							/>
 						)}
-						<RangeControl
-							label={__('Effect strength (%)', 'anilibrary')}
-							value={intensity}
-							onChange={(value) => setAttributes({ intensity: Number(value) || 100 })}
-							min={10}
-							max={200}
-							step={10}
-						/>
-						<RangeControl
-							label={__('Animation length (ms)', 'anilibrary')}
-							value={duration}
-							onChange={(value) => setAttributes({ duration: Number(value) || 700 })}
-							min={100}
-							max={6000}
-							step={50}
-						/>
-						<RangeControl
-							label={__('Start delay (ms)', 'anilibrary')}
-							value={delay}
-							onChange={(value) => setAttributes({ delay: Number(value) || 0 })}
-							min={0}
-							max={3000}
-							step={50}
-						/>
+						{isMediaScroll && (
+							<>
+								<SelectControl
+									label={__('Playback direction', 'anilibrary')}
+									value={mediaScrollPlaybackDirection}
+									options={[
+										{ label: __('Forward as scroll progresses', 'anilibrary'), value: 'forward' },
+										{ label: __('Backward as scroll progresses', 'anilibrary'), value: 'backward' },
+									]}
+									onChange={(value) => setAttributes({ mediaScrollPlaybackDirection: value })}
+								/>
+								<SelectControl
+									label={__('Allowed scroll direction', 'anilibrary')}
+									value={mediaScrollDirectionLimit}
+									options={[
+										{ label: __('Both directions', 'anilibrary'), value: 'both' },
+										{ label: __('Scrolling down only', 'anilibrary'), value: 'down' },
+										{ label: __('Scrolling up only', 'anilibrary'), value: 'up' },
+									]}
+									onChange={(value) => setAttributes({ mediaScrollDirectionLimit: value })}
+								/>
+								<RangeControl
+									label={__('Number of times to play', 'anilibrary')}
+									value={mediaScrollPlaybackCycles}
+									onChange={(value) => setAttributes({ mediaScrollPlaybackCycles: Math.max(1, Number(value) || 1) })}
+									min={1}
+									max={10}
+									step={1}
+									help={__('Play the full video or GIF this many times as someone scrolls through the range.', 'anilibrary')}
+								/>
+								<SelectControl
+									label={__('Use scroll from', 'anilibrary')}
+									value={mediaScrollProgressSource}
+									options={[
+										{ label: __('Screen position', 'anilibrary'), value: 'viewport' },
+										{ label: __('Whole page', 'anilibrary'), value: 'document' },
+										{ label: __('Parent block', 'anilibrary'), value: 'parent' },
+									]}
+									onChange={(value) => setAttributes({ mediaScrollProgressSource: value })}
+								/>
+								{mediaScrollProgressSource === 'viewport' && (
+									<>
+										<SelectControl
+											label={__('Track this part of the block', 'anilibrary')}
+											value={mediaScrollViewportEdge}
+											options={[
+												{ label: __('Top edge', 'anilibrary'), value: 'top' },
+												{ label: __('Bottom edge', 'anilibrary'), value: 'bottom' },
+											]}
+											onChange={(value) => setAttributes({ mediaScrollViewportEdge: value })}
+										/>
+										<RangeControl
+											label={__('Start when that part is this far down the screen (%)', 'anilibrary')}
+											value={mediaScrollViewportStart}
+											onChange={(value) => setAttributes({ mediaScrollViewportStart: Number(value) || 0 })}
+											min={0}
+											max={100}
+											step={1}
+											help={__('0 is the top of the screen. 100 is the bottom.', 'anilibrary')}
+										/>
+										<RangeControl
+											label={mediaScrollStartAtPageTop ? __('End after scrolling this much of the screen (%)', 'anilibrary') : __('End when that part is this far down the screen (%)', 'anilibrary')}
+											value={mediaScrollViewportEnd}
+											onChange={(value) => setAttributes({ mediaScrollViewportEnd: Number(value) || 0 })}
+											min={0}
+											max={100}
+											step={1}
+											help={mediaScrollStartAtPageTop ? __('Use a smaller number, like 10, to finish near the top of the page.', 'anilibrary') : __('Use 10 to end near the top of the screen.', 'anilibrary')}
+										/>
+										<ToggleControl
+											label={__('Start at the beginning when page is at top', 'anilibrary')}
+											checked={mediaScrollStartAtPageTop}
+											onChange={(value) => setAttributes({ mediaScrollStartAtPageTop: value })}
+											help={__('Useful when the video or GIF is already visible at the top of the page. In this mode, End controls how far to scroll before reaching the end.', 'anilibrary')}
+										/>
+									</>
+								)}
+								{mediaScrollProgressSource !== 'viewport' && (
+									<>
+										<ToggleControl
+											label={__('Start at the beginning when page is at top', 'anilibrary')}
+											checked={mediaScrollStartAtPageTop}
+											onChange={(value) => setAttributes({ mediaScrollStartAtPageTop: value })}
+											help={__('Useful when the video or GIF is already visible at the top of the page. In this mode, Start is treated as 0%.', 'anilibrary')}
+										/>
+										{!mediaScrollStartAtPageTop && (
+											<RangeControl
+												label={__('Start at scroll (%)', 'anilibrary')}
+												value={mediaScrollDocumentStart}
+												onChange={(value) => setAttributes({ mediaScrollDocumentStart: Number(value) || 0 })}
+												min={0}
+												max={100}
+												step={1}
+											/>
+										)}
+										<RangeControl
+											label={__('End at scroll (%)', 'anilibrary')}
+											value={mediaScrollDocumentEnd}
+											onChange={(value) => setAttributes({ mediaScrollDocumentEnd: Number(value) || 0 })}
+											min={0}
+											max={100}
+											step={1}
+										/>
+									</>
+								)}
+								{detectedScrollMedia.hasAnimatedGif && (
+									<p className="components-base-control__help">
+										{__('GIFs may move in small steps depending on the browser. For the smoothest result, use a video file instead.', 'anilibrary')}
+									</p>
+								)}
+							</>
+						)}
+						{!isMediaScroll && (
+							<>
+								<RangeControl
+									label={__('Effect strength (%)', 'anilibrary')}
+									value={intensity}
+									onChange={(value) => setAttributes({ intensity: Number(value) || 100 })}
+									min={10}
+									max={200}
+									step={10}
+								/>
+								<RangeControl
+									label={__('Animation length (ms)', 'anilibrary')}
+									value={duration}
+									onChange={(value) => setAttributes({ duration: Number(value) || 700 })}
+									min={100}
+									max={6000}
+									step={50}
+								/>
+								<RangeControl
+									label={__('Start delay (ms)', 'anilibrary')}
+									value={delay}
+									onChange={(value) => setAttributes({ delay: Number(value) || 0 })}
+									min={0}
+									max={3000}
+									step={50}
+								/>
+							</>
+						)}
 						{hasAnimationWrapperParent && (
 							<ToggleControl
 								label={__('Add parent delay (nested blocks)', 'anilibrary')}
@@ -589,18 +838,20 @@ registerBlockType(metadata.name, {
 								help={__('Lets this nested block follow the parent effect state (for example, start hidden if parent starts hidden).', 'anilibrary')}
 							/>
 						)}
-						<SelectControl
-							label={__('Motion style', 'anilibrary')}
-							value={easing}
-							options={[
-								{ label: __('Smooth out', 'anilibrary'), value: 'ease-out' },
-								{ label: __('Smooth in and out', 'anilibrary'), value: 'ease-in-out' },
-								{ label: __('Steady speed', 'anilibrary'), value: 'linear' },
-								{ label: __('Extra smooth', 'anilibrary'), value: 'cubic-bezier(0.65,0,0.35,1)' },
-							]}
-							onChange={(value) => setAttributes({ easing: value })}
-						/>
-						{isDirectionalPreset(preset) && (
+						{!isMediaScroll && (
+							<SelectControl
+								label={__('Motion style', 'anilibrary')}
+								value={easing}
+								options={[
+									{ label: __('Smooth out', 'anilibrary'), value: 'ease-out' },
+									{ label: __('Smooth in and out', 'anilibrary'), value: 'ease-in-out' },
+									{ label: __('Steady speed', 'anilibrary'), value: 'linear' },
+									{ label: __('Extra smooth', 'anilibrary'), value: 'cubic-bezier(0.65,0,0.35,1)' },
+								]}
+								onChange={(value) => setAttributes({ easing: value })}
+							/>
+						)}
+						{!isMediaScroll && isDirectionalPreset(preset) && (
 							<SelectControl
 								label={__('Direction', 'anilibrary')}
 								value={direction}
@@ -608,7 +859,7 @@ registerBlockType(metadata.name, {
 								onChange={(value) => setAttributes({ direction: value })}
 							/>
 						)}
-						{preset === 'zoom' && (
+						{!isMediaScroll && preset === 'zoom' && (
 							<SelectControl
 								label={__('Zoom direction', 'anilibrary')}
 								value={zoomMode}
@@ -619,7 +870,7 @@ registerBlockType(metadata.name, {
 								onChange={(value) => setAttributes({ zoomMode: value })}
 							/>
 						)}
-						{preset === 'bounce-soft' && (
+						{!isMediaScroll && preset === 'bounce-soft' && (
 							<RangeControl
 								label={__('Number of bounces', 'anilibrary')}
 								value={bounceCount}
@@ -646,9 +897,10 @@ registerBlockType(metadata.name, {
 						)}
 						{trigger !== 'loop' && (
 							<ToggleControl
-								label={__('Play once', 'anilibrary')}
+								label={isMediaScroll ? __('Stop after first full scrub', 'anilibrary') : __('Play once', 'anilibrary')}
 								checked={once}
 								onChange={(value) => setAttributes({ once: value })}
+								help={isMediaScroll ? __('Keeps the video or GIF at the end after the first full scroll through.', 'anilibrary') : undefined}
 							/>
 						)}
 						{detectedKind === 'text' && (
@@ -711,13 +963,24 @@ registerBlockType(metadata.name, {
 			textGranularity,
 			inheritParentDelay,
 			followParentAnimation,
+			mediaScrollPlaybackDirection,
+			mediaScrollDirectionLimit,
+			mediaScrollPlaybackCycles,
+			mediaScrollProgressSource,
+			mediaScrollViewportEdge,
+			mediaScrollViewportStart,
+			mediaScrollViewportEnd,
+			mediaScrollStartAtPageTop,
+			mediaScrollDocumentStart,
+			mediaScrollDocumentEnd,
 		} = attributes;
+		const effectiveTrigger = isMediaScrollPreset(preset) ? 'scroll-media' : trigger;
 
 		const blockProps = useBlockProps.save({
 			className: 'abw-wrapper',
 			'data-ffaw-preset': preset,
 			'data-ffaw-content-kind': contentKind,
-			'data-ffaw-trigger': trigger,
+			'data-ffaw-trigger': effectiveTrigger,
 			'data-ffaw-intensity': String(intensity),
 			'data-ffaw-direction': direction,
 			'data-ffaw-zoom-mode': zoomMode,
@@ -728,12 +991,22 @@ registerBlockType(metadata.name, {
 			'data-ffaw-easing': easing,
 			'data-ffaw-once': once ? '1' : '0',
 			'data-ffaw-threshold': String(threshold),
-			'data-ffaw-loop': loop ? '1' : '0',
+			'data-ffaw-loop': !isMediaScrollPreset(preset) && loop ? '1' : '0',
 			'data-ffaw-click-toggle': clickToggle ? '1' : '0',
 			'data-ffaw-hide-until-hover': hideUntilHover ? '1' : '0',
 			'data-ffaw-text-granularity': textGranularity,
 			'data-ffaw-inherit-parent-delay': inheritParentDelay ? '1' : '0',
 			'data-ffaw-follow-parent-animation': followParentAnimation ? '1' : '0',
+			'data-ffaw-media-scroll-playback-direction': mediaScrollPlaybackDirection,
+			'data-ffaw-media-scroll-direction-limit': mediaScrollDirectionLimit,
+			'data-ffaw-media-scroll-playback-cycles': String(mediaScrollPlaybackCycles),
+			'data-ffaw-media-scroll-progress-source': mediaScrollProgressSource,
+			'data-ffaw-media-scroll-viewport-edge': mediaScrollViewportEdge,
+			'data-ffaw-media-scroll-viewport-start': String(mediaScrollViewportStart),
+			'data-ffaw-media-scroll-viewport-end': String(mediaScrollViewportEnd),
+			'data-ffaw-media-scroll-start-at-page-top': mediaScrollStartAtPageTop ? '1' : '0',
+			'data-ffaw-media-scroll-document-start': String(mediaScrollDocumentStart),
+			'data-ffaw-media-scroll-document-end': String(mediaScrollDocumentEnd),
 		});
 
 		return (

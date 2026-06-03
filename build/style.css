@@ -31,6 +31,38 @@
 	white-space: pre-wrap;
 }
 
+.wp-block-animation-block-wrapper-wrapper.abw-scroll-media-wrapper video,
+.wp-block-animation-block-wrapper-wrapper.abw-scroll-media-wrapper .abw-scroll-media-gif {
+	will-change: transform, opacity, filter;
+}
+
+.wp-block-animation-block-wrapper-wrapper.abw-scroll-media-wrapper .abw-gif-scrub-source {
+	display: none !important;
+}
+
+.wp-block-animation-block-wrapper-wrapper.abw-scroll-media-wrapper .abw-gif-scrub-canvas {
+	display: block;
+	max-width: 100%;
+	height: auto;
+}
+
+.wp-block-animation-block-wrapper-wrapper.abw-scroll-media-wrapper .aligncenter > .abw-gif-scrub-canvas,
+.wp-block-animation-block-wrapper-wrapper.abw-scroll-media-wrapper .has-text-align-center > .abw-gif-scrub-canvas,
+.wp-block-animation-block-wrapper-wrapper.abw-scroll-media-wrapper .abw-gif-scrub-align-center {
+	margin-left: auto;
+	margin-right: auto;
+}
+
+.wp-block-animation-block-wrapper-wrapper.abw-scroll-media-wrapper .alignleft > .abw-gif-scrub-canvas,
+.wp-block-animation-block-wrapper-wrapper.abw-scroll-media-wrapper .abw-gif-scrub-align-left {
+	margin-right: auto;
+}
+
+.wp-block-animation-block-wrapper-wrapper.abw-scroll-media-wrapper .alignright > .abw-gif-scrub-canvas,
+.wp-block-animation-block-wrapper-wrapper.abw-scroll-media-wrapper .abw-gif-scrub-align-right {
+	margin-left: auto;
+}
+
 @media (prefers-reduced-motion: reduce) {
 	.wp-block-animation-block-wrapper-wrapper.abw-wrapper > * {
 		animation: none !important;
