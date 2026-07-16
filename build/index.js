@@ -28,6 +28,7 @@
 			threshold: { type: 'number', default: 0.25 },
 			loop: { type: 'boolean', default: false },
 			clickToggle: { type: 'boolean', default: false },
+			exitMode: { type: 'string', default: 'rewind' },
 			hideUntilHover: { type: 'boolean', default: false },
 			inheritParentDelay: { type: 'boolean', default: false },
 			followParentAnimation: { type: 'boolean', default: false },
@@ -153,6 +154,26 @@
 
 	function isMediaScrollPreset(presetId) {
 		return presetId === 'scroll-media';
+	}
+
+	function isLoopPreset(presetId) {
+		return ['pulse-soft', 'float-soft', 'bounce-soft'].indexOf(presetId) !== -1;
+	}
+
+	function supportsExitAnimation(presetId, trigger, once, clickToggle) {
+		if (isMediaScrollPreset(presetId) || isLoopPreset(presetId) || trigger === 'loop' || trigger === 'load') {
+			return false;
+		}
+		if (trigger === 'hover') {
+			return true;
+		}
+		if (trigger === 'click') {
+			return !!clickToggle;
+		}
+		if (trigger === 'scroll') {
+			return !once;
+		}
+		return false;
 	}
 
 	function formatDelaySeconds(ms) {
@@ -329,7 +350,7 @@
 			const { attributes, setAttributes, clientId } = props;
 			const {
 				preset, contentKind, trigger, intensity, direction, zoomMode, bounceCount,
-				duration, delay, stagger, easing, once, threshold, loop, clickToggle, hideUntilHover, textGranularity, inheritParentDelay, followParentAnimation,
+				duration, delay, stagger, easing, once, threshold, loop, clickToggle, exitMode, hideUntilHover, textGranularity, inheritParentDelay, followParentAnimation,
 				mediaScrollPlaybackDirection, mediaScrollDirectionLimit, mediaScrollPlaybackCycles, mediaScrollProgressSource, mediaScrollViewportEdge,
 				mediaScrollViewportStart, mediaScrollViewportEnd, mediaScrollStartAtPageTop, mediaScrollDocumentStart, mediaScrollDocumentEnd,
 			} = attributes;
@@ -877,6 +898,18 @@
 									help: isMediaScroll ? __('Keeps the video or GIF at the end after the first full scroll through.', 'anilibrary') : undefined,
 							  })
 							: null,
+						supportsExitAnimation(preset, trigger, once, clickToggle)
+							? createElement(SelectControl, {
+									label: __('Exit style', 'anilibrary'),
+									value: exitMode || 'rewind',
+									options: [
+										{ label: __('Rewind (back the way it came)', 'anilibrary'), value: 'rewind' },
+										{ label: __('Continue (keep traveling)', 'anilibrary'), value: 'continue' },
+									],
+									onChange: function (value) { setAttributes({ exitMode: value }); },
+									help: __('Exit is derived from the entrance preset — no separate exit animation needed.', 'anilibrary'),
+							  })
+							: null,
 						detectedKind === 'text'
 							? createElement(SelectControl, {
 									label: __('Text animation mode', 'anilibrary'),
@@ -924,7 +957,7 @@
 		save: function (props) {
 			const {
 				preset, contentKind, trigger, intensity, direction, zoomMode, bounceCount,
-				duration, delay, stagger, easing, once, threshold, loop, clickToggle, hideUntilHover, textGranularity, inheritParentDelay, followParentAnimation,
+				duration, delay, stagger, easing, once, threshold, loop, clickToggle, exitMode, hideUntilHover, textGranularity, inheritParentDelay, followParentAnimation,
 				mediaScrollPlaybackDirection, mediaScrollDirectionLimit, mediaScrollPlaybackCycles, mediaScrollProgressSource, mediaScrollViewportEdge,
 				mediaScrollViewportStart, mediaScrollViewportEnd, mediaScrollStartAtPageTop, mediaScrollDocumentStart, mediaScrollDocumentEnd,
 			} = props.attributes;
@@ -947,6 +980,7 @@
 				'data-ffaw-threshold': String(threshold),
 				'data-ffaw-loop': !isMediaScrollPreset(preset) && loop ? '1' : '0',
 				'data-ffaw-click-toggle': clickToggle ? '1' : '0',
+				'data-ffaw-exit-mode': exitMode || 'rewind',
 				'data-ffaw-hide-until-hover': hideUntilHover ? '1' : '0',
 				'data-ffaw-text-granularity': textGranularity,
 				'data-ffaw-inherit-parent-delay': inheritParentDelay ? '1' : '0',

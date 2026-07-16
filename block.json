@@ -79,6 +79,10 @@
       "type": "boolean",
       "default": false
     },
+    "exitMode": {
+      "type": "string",
+      "default": "rewind"
+    },
     "hideUntilHover": {
       "type": "boolean",
       "default": false

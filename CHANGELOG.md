@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+- Added derived exit styles (`rewind` / `continue`) from entrance presets — no separate exit catalog.
+- Exit now plays on hover leave, click toggle off, and scroll leave when Play once is off.
+- Text exits reverse their stagger order (last unit leaves first).
+
 ## 1.1.0 - 2026-06-03
 
 - Added a media-only Scrub preset for video blocks.

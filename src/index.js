@@ -115,6 +115,26 @@ function isMediaScrollPreset(presetId) {
 	return presetId === 'scroll-media';
 }
 
+function isLoopPreset(presetId) {
+	return ['pulse-soft', 'float-soft', 'bounce-soft'].includes(presetId);
+}
+
+function supportsExitAnimation(presetId, trigger, once, clickToggle) {
+	if (isMediaScrollPreset(presetId) || isLoopPreset(presetId) || trigger === 'loop' || trigger === 'load') {
+		return false;
+	}
+	if (trigger === 'hover') {
+		return true;
+	}
+	if (trigger === 'click') {
+		return !!clickToggle;
+	}
+	if (trigger === 'scroll') {
+		return !once;
+	}
+	return false;
+}
+
 function formatDelaySeconds(ms) {
 	const seconds = Math.max(0, Number(ms) || 0) / 1000;
 	const decimals = seconds < 1 ? 2 : 1;
@@ -310,6 +330,7 @@ registerBlockType(metadata.name, {
 			threshold,
 			loop,
 			clickToggle,
+			exitMode,
 			hideUntilHover,
 			textGranularity,
 			inheritParentDelay,
@@ -903,6 +924,27 @@ registerBlockType(metadata.name, {
 								help={isMediaScroll ? __('Keeps the video or GIF at the end after the first full scroll through.', 'anilibrary') : undefined}
 							/>
 						)}
+						{supportsExitAnimation(preset, trigger, once, clickToggle) && (
+							<SelectControl
+								label={__('Exit style', 'anilibrary')}
+								value={exitMode || 'rewind'}
+								options={[
+									{
+										label: __('Rewind (back the way it came)', 'anilibrary'),
+										value: 'rewind',
+									},
+									{
+										label: __('Continue (keep traveling)', 'anilibrary'),
+										value: 'continue',
+									},
+								]}
+								onChange={(value) => setAttributes({ exitMode: value })}
+								help={__(
+									'Exit is derived from the entrance preset — no separate exit animation needed.',
+									'anilibrary'
+								)}
+							/>
+						)}
 						{detectedKind === 'text' && (
 							<SelectControl
 								label={__('Text animation mode', 'anilibrary')}
@@ -959,6 +1001,7 @@ registerBlockType(metadata.name, {
 			threshold,
 			loop,
 			clickToggle,
+			exitMode,
 			hideUntilHover,
 			textGranularity,
 			inheritParentDelay,
@@ -993,6 +1036,7 @@ registerBlockType(metadata.name, {
 			'data-ffaw-threshold': String(threshold),
 			'data-ffaw-loop': !isMediaScrollPreset(preset) && loop ? '1' : '0',
 			'data-ffaw-click-toggle': clickToggle ? '1' : '0',
+			'data-ffaw-exit-mode': exitMode || 'rewind',
 			'data-ffaw-hide-until-hover': hideUntilHover ? '1' : '0',
 			'data-ffaw-text-granularity': textGranularity,
 			'data-ffaw-inherit-parent-delay': inheritParentDelay ? '1' : '0',

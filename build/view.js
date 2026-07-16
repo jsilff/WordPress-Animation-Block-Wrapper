@@ -350,6 +350,89 @@ function keyframesStartHidden(keyframes) {
 	return !Number.isNaN(numericOpacity) && numericOpacity < 1;
 }
 
+function negateLinearToken(token) {
+	const parsed = parseNumericToken(token);
+	if (!parsed) {
+		return token;
+	}
+	return `${-parsed.value}${parsed.unit}`;
+}
+
+function mirrorScaleToken(token) {
+	const parsed = parseNumericToken(token);
+	if (!parsed) {
+		return token;
+	}
+	// Mirror the delta around identity: scale(0.92) ↔ scale(1.08).
+	return `${2 - parsed.value}${parsed.unit}`;
+}
+
+function invertDirectionalTransform(transform) {
+	if (!transform) {
+		return transform;
+	}
+
+	return String(transform)
+		.replace(/translate3d\(([^,]+),([^,]+),([^)]+)\)/g, (_m, x, y, z) =>
+			`translate3d(${negateLinearToken(x)}, ${negateLinearToken(y)}, ${negateLinearToken(z)})`
+		)
+		.replace(/translateX\(([^)]+)\)/g, (_m, x) => `translateX(${negateLinearToken(x)})`)
+		.replace(/translateY\(([^)]+)\)/g, (_m, y) => `translateY(${negateLinearToken(y)})`)
+		.replace(/translateZ\(([^)]+)\)/g, (_m, z) => `translateZ(${negateLinearToken(z)})`)
+		.replace(/scale\(([^)]+)\)/g, (_m, s) => `scale(${mirrorScaleToken(s)})`)
+		.replace(/rotate(?:X|Y|Z)?\(([^)]+)\)/g, (m, v) => {
+			const fn = m.slice(0, m.indexOf('('));
+			return `${fn}(${negateLinearToken(v)})`;
+		});
+}
+
+function stripKeyframeOffsets(keyframes) {
+	return keyframes.map((frame) => {
+		const next = { ...frame };
+		delete next.offset;
+		return next;
+	});
+}
+
+function deriveContinueExitEnd(entryOffFrame) {
+	const exitEnd = { ...entryOffFrame };
+	delete exitEnd.offset;
+	if (exitEnd.transform) {
+		exitEnd.transform = invertDirectionalTransform(exitEnd.transform);
+	}
+	return exitEnd;
+}
+
+/**
+ * Build exit keyframes from an entrance sequence without a separate preset catalog.
+ * - rewind: play the entry path backwards (back the way it came)
+ * - continue: keep opacity/filter exit cues, but flip directional transforms so motion continues
+ */
+function deriveExitKeyframes(entryKeyframes, exitMode = 'rewind') {
+	if (!Array.isArray(entryKeyframes) || entryKeyframes.length < 2) {
+		return entryKeyframes || [];
+	}
+
+	const mode = exitMode === 'continue' ? 'continue' : 'rewind';
+	const hasTimedOffsets = entryKeyframes.some(
+		(frame) => frame && typeof frame.offset === 'number'
+	);
+
+	// Multi-step loops (pulse/float/bounce) only support rewind cleanly.
+	if (mode === 'rewind' || hasTimedOffsets) {
+		return stripKeyframeOffsets([...entryKeyframes].reverse());
+	}
+
+	const restFrame = { ...entryKeyframes[entryKeyframes.length - 1] };
+	delete restFrame.offset;
+	const exitEnd = deriveContinueExitEnd(entryKeyframes[0]);
+	return [restFrame, exitEnd];
+}
+
+function normalizeExitMode(rawMode) {
+	return rawMode === 'continue' ? 'continue' : 'rewind';
+}
+
 function tokenizeText(text, mode) {
 	if (mode === 'character') {
 		return Array.from(text).map((char) =>
@@ -671,15 +754,19 @@ function getAnimationTargets(wrapper, preset, textGranularity) {
 
 function animateTargets(targets, keyframes, options, reverse) {
 	const isReverse = !!reverse;
-	const frames = isReverse ? [...keyframes].reverse() : keyframes;
+	const frames = isReverse
+		? deriveExitKeyframes(keyframes, options.exitMode)
+		: keyframes;
 	const animations = [];
+	const lastIndex = Math.max(0, targets.length - 1);
 	targets.forEach((target, index) => {
 		if (!isReverse) {
 			clearInlineState(target);
 		}
+		const staggerIndex = isReverse ? lastIndex - index : index;
 		const animation = target.animate(frames, {
 			duration: options.duration,
-			delay: options.delay + index * options.stagger,
+			delay: options.delay + staggerIndex * options.stagger,
 			easing: options.easing,
 			iterations: options.iterations,
 			fill: options.fill,
@@ -768,6 +855,9 @@ function animateChildren(wrapper, reverse = false, config = {}) {
 	const bounceCount = Math.max(1, Math.min(8, Number(wrapper.dataset.ffawBounceCount || 1)));
 	const isTextContent = wrapper.dataset.ffawContentKind === 'text';
 	const forceSingleIteration = !!config.forceSingleIteration;
+	const exitMode = normalizeExitMode(
+		config.exitMode || wrapper.dataset.ffawExitMode || 'rewind'
+	);
 	let effectiveStagger = isTextContent
 		? resolveTextStagger(rawStagger, textGranularity)
 		: 0;
@@ -782,7 +872,9 @@ function animateChildren(wrapper, reverse = false, config = {}) {
 	const hasCustomStartDelay = Number.isFinite(config.startDelay);
 	const delay = hasCustomStartDelay
 		? Math.max(0, Number(config.startDelay))
-		: resolveInheritedDelay(wrapper, configuredDelay);
+		: reverse
+			? 0
+			: resolveInheritedDelay(wrapper, configuredDelay);
 	const iterations = shouldLoop && !forceSingleIteration
 		? Infinity
 		: preset === 'bounce-soft'
@@ -797,6 +889,13 @@ function animateChildren(wrapper, reverse = false, config = {}) {
 			: 'forwards';
 
 	cancelWrapperAnimations(wrapper);
+	if (reverse) {
+		const existingTimer = Number(wrapper.dataset.abwRestoreTimer || 0);
+		if (existingTimer) {
+			window.clearTimeout(existingTimer);
+			wrapper.dataset.abwRestoreTimer = '';
+		}
+	}
 	const animations = animateTargets(
 		targets,
 		keyframes,
@@ -808,6 +907,7 @@ function animateChildren(wrapper, reverse = false, config = {}) {
 			iterations,
 			fill: fillMode,
 			textGranularity,
+			exitMode,
 		},
 		reverse
 	);
@@ -826,6 +926,13 @@ function animateChildren(wrapper, reverse = false, config = {}) {
 			config.onComplete();
 		});
 	}
+}
+
+function playExitAnimation(wrapper, config = {}) {
+	animateChildren(wrapper, true, {
+		...config,
+		exitMode: config.exitMode || normalizeExitMode(wrapper.dataset.ffawExitMode || 'rewind'),
+	});
 }
 
 function isWrapperInViewport(wrapper, threshold) {
@@ -1539,6 +1646,24 @@ function setupWrapper(wrapper) {
 		wrapper.addEventListener('mouseenter', () => {
 			triggerWrapperAnimation();
 		});
+		wrapper.addEventListener('mouseleave', () => {
+			playExitAnimation(wrapper, {
+				directionOverride: resolveDirectionOverride(),
+				onComplete: () => {
+					if (shouldPrimeHover) {
+						wrapper.classList.add('abw-hide-until-hover');
+						const resetTargets = mergeFollowTargets(
+							wrapper,
+							getAnimationTargets(wrapper, preset, textGranularity)
+						);
+						const resetState = resolveCurrentAnimationState();
+						resetTargets.forEach((target) => {
+							applyInitialState(target, resetState.keyframes);
+						});
+					}
+				},
+			});
+		});
 		return;
 	}
 
@@ -1554,7 +1679,7 @@ function setupWrapper(wrapper) {
 				triggerWrapperAnimation();
 				return;
 			}
-			animateChildren(wrapper, true, {
+			playExitAnimation(wrapper, {
 				directionOverride: resolveDirectionOverride(),
 			});
 		});
@@ -1633,17 +1758,22 @@ function setupWrapper(wrapper) {
 						if (once || !hasPlayed) {
 							return;
 						}
-						const resetAnimationState = resolveCurrentAnimationState();
-						const resetTargets = mergeFollowTargets(
-							wrapper,
-							getAnimationTargets(
-								wrapper,
-								resetAnimationState.preset,
-								resetAnimationState.textGranularity
-							)
-						);
-						resetTargets.forEach((target) => {
-							applyInitialState(target, resetAnimationState.keyframes);
+						playExitAnimation(wrapper, {
+							directionOverride: resolveDirectionOverride(),
+							onComplete: () => {
+								const resetAnimationState = resolveCurrentAnimationState();
+								const resetTargets = mergeFollowTargets(
+									wrapper,
+									getAnimationTargets(
+										wrapper,
+										resetAnimationState.preset,
+										resetAnimationState.textGranularity
+									)
+								);
+								resetTargets.forEach((target) => {
+									applyInitialState(target, resetAnimationState.keyframes);
+								});
+							},
 						});
 					}
 				});
