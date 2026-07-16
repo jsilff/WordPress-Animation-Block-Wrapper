@@ -923,6 +923,13 @@ function animateChildren(wrapper, reverse = false, config = {}) {
 				animation.finished.catch(() => undefined)
 			)
 		).then(() => {
+			// Canceled plays (e.g. hover re-enter mid-exit) reject finished; skip side effects.
+			const completedCleanly = animations.every(
+				(animation) => animation.playState === 'finished'
+			);
+			if (!completedCleanly) {
+				return;
+			}
 			config.onComplete();
 		});
 	}
@@ -1650,17 +1657,22 @@ function setupWrapper(wrapper) {
 			playExitAnimation(wrapper, {
 				directionOverride: resolveDirectionOverride(),
 				onComplete: () => {
-					if (shouldPrimeHover) {
-						wrapper.classList.add('abw-hide-until-hover');
-						const resetTargets = mergeFollowTargets(
-							wrapper,
-							getAnimationTargets(wrapper, preset, textGranularity)
-						);
-						const resetState = resolveCurrentAnimationState();
-						resetTargets.forEach((target) => {
-							applyInitialState(target, resetState.keyframes);
-						});
+					if (!shouldPrimeHover) {
+						return;
 					}
+					// Pointer may have returned before exit finished; do not re-hide while hovered.
+					if (wrapper.matches(':hover')) {
+						return;
+					}
+					wrapper.classList.add('abw-hide-until-hover');
+					const resetTargets = mergeFollowTargets(
+						wrapper,
+						getAnimationTargets(wrapper, preset, textGranularity)
+					);
+					const resetState = resolveCurrentAnimationState();
+					resetTargets.forEach((target) => {
+						applyInitialState(target, resetState.keyframes);
+					});
 				},
 			});
 		});

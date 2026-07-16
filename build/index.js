@@ -962,8 +962,8 @@
 				mediaScrollViewportStart, mediaScrollViewportEnd, mediaScrollStartAtPageTop, mediaScrollDocumentStart, mediaScrollDocumentEnd,
 			} = props.attributes;
 			const effectiveTrigger = isMediaScrollPreset(preset) ? 'scroll-media' : trigger;
-
-			const blockProps = useBlockProps.save({
+			const normalizedExitMode = exitMode === 'continue' ? 'continue' : 'rewind';
+			const saveProps = {
 				className: 'abw-wrapper',
 				'data-ffaw-preset': preset,
 				'data-ffaw-content-kind': contentKind,
@@ -980,7 +980,6 @@
 				'data-ffaw-threshold': String(threshold),
 				'data-ffaw-loop': !isMediaScrollPreset(preset) && loop ? '1' : '0',
 				'data-ffaw-click-toggle': clickToggle ? '1' : '0',
-				'data-ffaw-exit-mode': exitMode || 'rewind',
 				'data-ffaw-hide-until-hover': hideUntilHover ? '1' : '0',
 				'data-ffaw-text-granularity': textGranularity,
 				'data-ffaw-inherit-parent-delay': inheritParentDelay ? '1' : '0',
@@ -995,7 +994,13 @@
 				'data-ffaw-media-scroll-start-at-page-top': mediaScrollStartAtPageTop ? '1' : '0',
 				'data-ffaw-media-scroll-document-start': String(mediaScrollDocumentStart),
 				'data-ffaw-media-scroll-document-end': String(mediaScrollDocumentEnd),
-			});
+			};
+			// Omit default so existing saved markup stays valid (runtime already defaults to rewind).
+			if (normalizedExitMode !== 'rewind') {
+				saveProps['data-ffaw-exit-mode'] = normalizedExitMode;
+			}
+
+			const blockProps = useBlockProps.save(saveProps);
 
 			return createElement('div', blockProps, createElement(InnerBlocks.Content));
 		},

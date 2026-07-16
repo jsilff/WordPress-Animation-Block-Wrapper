@@ -1018,6 +1018,7 @@ registerBlockType(metadata.name, {
 			mediaScrollDocumentEnd,
 		} = attributes;
 		const effectiveTrigger = isMediaScrollPreset(preset) ? 'scroll-media' : trigger;
+		const normalizedExitMode = exitMode === 'continue' ? 'continue' : 'rewind';
 
 		const blockProps = useBlockProps.save({
 			className: 'abw-wrapper',
@@ -1036,7 +1037,10 @@ registerBlockType(metadata.name, {
 			'data-ffaw-threshold': String(threshold),
 			'data-ffaw-loop': !isMediaScrollPreset(preset) && loop ? '1' : '0',
 			'data-ffaw-click-toggle': clickToggle ? '1' : '0',
-			'data-ffaw-exit-mode': exitMode || 'rewind',
+			// Omit default so existing saved markup stays valid (runtime already defaults to rewind).
+			...(normalizedExitMode !== 'rewind'
+				? { 'data-ffaw-exit-mode': normalizedExitMode }
+				: {}),
 			'data-ffaw-hide-until-hover': hideUntilHover ? '1' : '0',
 			'data-ffaw-text-granularity': textGranularity,
 			'data-ffaw-inherit-parent-delay': inheritParentDelay ? '1' : '0',
