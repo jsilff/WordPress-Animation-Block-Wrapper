@@ -892,18 +892,18 @@
 							  ),
 						hasAnimationWrapperParent
 							? createElement(ToggleControl, {
-									label: __('Add parent delay (nested blocks)', 'anilibrary'),
+									label: __('Match parent timing', 'anilibrary'),
 									checked: inheritParentDelay,
 									onChange: function (value) { setAttributes({ inheritParentDelay: value }); },
-									help: __('Adds the parent block delay to this block delay.', 'anilibrary'),
+									help: __('Only shares timing: adds the parent delay to this block. This block still runs its own effect.', 'anilibrary'),
 							  })
 							: null,
 						hasAnimationWrapperParent
 							? createElement(ToggleControl, {
-									label: __('Follow parent animation', 'anilibrary'),
+									label: __('Join parent animation', 'anilibrary'),
 									checked: followParentAnimation,
 									onChange: function (value) { setAttributes({ followParentAnimation: value }); },
-									help: __('Lets this nested block follow the parent effect state (for example, start hidden if parent starts hidden).', 'anilibrary'),
+									help: __('Include this block in the parent motion (fade/rise together) and shared hide/show. Leave off to stay independent — for example, keep Scrub visible while the parent hover-fades other content.', 'anilibrary'),
 							  })
 							: null,
 						!isMediaScroll

@@ -734,6 +734,10 @@ function getParentFollowWrapperTargets(wrapper) {
 	});
 }
 
+function getDirectChildTargets(wrapper) {
+	return Array.from(wrapper.children).filter((child) => child.nodeType === 1);
+}
+
 function mergeFollowTargets(wrapper, targets) {
 	const merged = Array.isArray(targets) ? [...targets] : [];
 	const followTargets = getParentFollowWrapperTargets(wrapper);
@@ -774,23 +778,30 @@ function getAnimationTargets(wrapper, preset, textGranularity) {
 				return closestWrapper === wrapper;
 			});
 		if (textUnits.length) {
-			return textUnits;
+			return mergeFollowTargets(wrapper, textUnits);
 		}
 	}
 
 	restoreTextSplits(wrapper);
-	const childTargets = Array.from(wrapper.children).filter((child) => child.nodeType === 1);
-	const nonNestedWrapperTargets = childTargets.filter((child) => {
+	const childTargets = getDirectChildTargets(wrapper);
+	const preferredTargets = childTargets.filter((child) => {
 		if (child.classList.contains('abw-wrapper')) {
+			// Only wrappers that opt into joining the parent motion.
 			return child.dataset.ffawFollowParentAnimation === '1';
 		}
-		// If this target contains any nested AniLibrary wrapper, let nested wrappers control their own lifecycle.
+		// Skip mixed blocks that contain their own nested AniLibrary wrappers.
 		if (child.querySelector('.abw-wrapper')) {
 			return false;
 		}
 		return true;
 	});
-	return nonNestedWrapperTargets;
+
+	// Nested-only parents (e.g. Rise wrapping a Hover child) previously got zero
+	// targets and never fired. Fall back to animating direct children as shells.
+	if (preferredTargets.length) {
+		return preferredTargets;
+	}
+	return childTargets;
 }
 
 function animateTargets(targets, keyframes, options, reverse) {
