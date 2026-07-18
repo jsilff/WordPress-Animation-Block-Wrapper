@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 - Added derived exit styles from entrance presets — no separate exit catalog.
 - Replaced exit-style config with **Animate In / Out / In & Out** (hidden for Scrub, loop presets, load, and loop trigger).
+- When **Animate In & Out** is selected, **Exit direction** offers Reverse or Continue (derived from the same preset).
 - Exit now plays on hover leave, click toggle off, and scroll leave when mode includes Out.
 - Text exits reverse their stagger order (last unit leaves first).
 - Default missing `data-ffaw-once` to play-once (true), matching the React port — avoids viewport-edge hide/animate flicker.
