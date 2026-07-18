@@ -29,6 +29,7 @@
 			loop: { type: 'boolean', default: false },
 			clickToggle: { type: 'boolean', default: false },
 			animationMode: { type: 'string', default: 'in' },
+			exitMode: { type: 'string', default: 'rewind' },
 			hideUntilHover: { type: 'boolean', default: false },
 			inheritParentDelay: { type: 'boolean', default: false },
 			followParentAnimation: { type: 'boolean', default: false },
@@ -175,6 +176,10 @@
 			return value;
 		}
 		return 'in';
+	}
+
+	function normalizeExitMode(value) {
+		return value === 'continue' ? 'continue' : 'rewind';
 	}
 
 	function formatDelaySeconds(ms) {
@@ -351,7 +356,7 @@
 			const { attributes, setAttributes, clientId } = props;
 			const {
 				preset, contentKind, trigger, intensity, direction, zoomMode, bounceCount,
-				duration, delay, stagger, easing, once, threshold, loop, clickToggle, animationMode, hideUntilHover, textGranularity, inheritParentDelay, followParentAnimation,
+				duration, delay, stagger, easing, once, threshold, loop, clickToggle, animationMode, exitMode, hideUntilHover, textGranularity, inheritParentDelay, followParentAnimation,
 				mediaScrollPlaybackDirection, mediaScrollDirectionLimit, mediaScrollPlaybackCycles, mediaScrollProgressSource, mediaScrollViewportEdge,
 				mediaScrollViewportStart, mediaScrollViewportEnd, mediaScrollStartAtPageTop, mediaScrollDocumentStart, mediaScrollDocumentEnd,
 			} = attributes;
@@ -594,7 +599,7 @@
 				if (shouldUpdate) {
 					setAttributes(updates);
 				}
-			}, [bounceCount, contentKind, detectedKind, direction, filteredPresets, followParentAnimation, hasAnimationWrapperParent, hasScrollControlledMedia, hideUntilHover, inheritParentDelay, isMediaScroll, loop, mediaScrollDirectionLimit, mediaScrollPlaybackDirection, mediaScrollProgressSource, mediaScrollStartAtPageTop, mediaScrollViewportEdge, mediaScrollViewportEnd, mediaScrollViewportStart, once, preset, primaryRecommendation, setAttributes, stagger, textGranularity, trigger, zoomMode]);
+			}, [animationMode, bounceCount, clickToggle, contentKind, detectedKind, direction, filteredPresets, followParentAnimation, hasAnimationWrapperParent, hasScrollControlledMedia, hideUntilHover, inheritParentDelay, isMediaScroll, loop, mediaScrollDirectionLimit, mediaScrollPlaybackDirection, mediaScrollProgressSource, mediaScrollStartAtPageTop, mediaScrollViewportEdge, mediaScrollViewportEnd, mediaScrollViewportStart, once, preset, primaryRecommendation, setAttributes, stagger, textGranularity, trigger, zoomMode]);
 
 			const isDelayed = Number(effectiveDelayMs) > 0;
 			const delayBadgeLabel = isDelayed
@@ -703,6 +708,18 @@
 										setAttributes(updates);
 									},
 									help: __('In plays on enter, Out plays on leave, In & Out plays both. Exit uses the same preset.', 'anilibrary'),
+							  })
+							: null,
+						supportsAnimationMode(preset, trigger) && normalizeAnimationMode(animationMode) === 'both'
+							? createElement(SelectControl, {
+									label: __('Exit direction', 'anilibrary'),
+									value: normalizeExitMode(exitMode),
+									options: [
+										{ label: __('Reverse (back the way it came)', 'anilibrary'), value: 'rewind' },
+										{ label: __('Continue (keep traveling)', 'anilibrary'), value: 'continue' },
+									],
+									onChange: function (value) { setAttributes({ exitMode: normalizeExitMode(value) }); },
+									help: __('Reverse rewinds the entrance. Continue keeps motion going in the same direction.', 'anilibrary'),
 							  })
 							: null,
 						trigger === 'scroll'
@@ -987,12 +1004,13 @@
 		save: function (props) {
 			const {
 				preset, contentKind, trigger, intensity, direction, zoomMode, bounceCount,
-				duration, delay, stagger, easing, once, threshold, loop, clickToggle, animationMode, hideUntilHover, textGranularity, inheritParentDelay, followParentAnimation,
+				duration, delay, stagger, easing, once, threshold, loop, clickToggle, animationMode, exitMode, hideUntilHover, textGranularity, inheritParentDelay, followParentAnimation,
 				mediaScrollPlaybackDirection, mediaScrollDirectionLimit, mediaScrollPlaybackCycles, mediaScrollProgressSource, mediaScrollViewportEdge,
 				mediaScrollViewportStart, mediaScrollViewportEnd, mediaScrollStartAtPageTop, mediaScrollDocumentStart, mediaScrollDocumentEnd,
 			} = props.attributes;
 			const effectiveTrigger = isMediaScrollPreset(preset) ? 'scroll-media' : trigger;
 			const normalizedAnimationMode = normalizeAnimationMode(animationMode);
+			const normalizedExitMode = normalizeExitMode(exitMode);
 			const saveProps = {
 				className: 'abw-wrapper',
 				'data-ffaw-preset': preset,
@@ -1025,9 +1043,12 @@
 				'data-ffaw-media-scroll-document-start': String(mediaScrollDocumentStart),
 				'data-ffaw-media-scroll-document-end': String(mediaScrollDocumentEnd),
 			};
-			// Omit default so existing saved markup stays valid.
+			// Omit defaults so existing saved markup stays valid.
 			if (normalizedAnimationMode !== 'in') {
 				saveProps['data-ffaw-animation-mode'] = normalizedAnimationMode;
+			}
+			if (normalizedAnimationMode === 'both' && normalizedExitMode !== 'rewind') {
+				saveProps['data-ffaw-exit-mode'] = normalizedExitMode;
 			}
 
 			const blockProps = useBlockProps.save(saveProps);

@@ -136,6 +136,10 @@ function normalizeAnimationMode(value) {
 	return 'in';
 }
 
+function normalizeExitMode(value) {
+	return value === 'continue' ? 'continue' : 'rewind';
+}
+
 function formatDelaySeconds(ms) {
 	const seconds = Math.max(0, Number(ms) || 0) / 1000;
 	const decimals = seconds < 1 ? 2 : 1;
@@ -332,6 +336,7 @@ registerBlockType(metadata.name, {
 			loop,
 			clickToggle,
 			animationMode,
+			exitMode,
 			hideUntilHover,
 			textGranularity,
 			inheritParentDelay,
@@ -738,6 +743,27 @@ registerBlockType(metadata.name, {
 								)}
 							/>
 						)}
+						{supportsAnimationMode(preset, trigger) && normalizeAnimationMode(animationMode) === 'both' && (
+							<SelectControl
+								label={__('Exit direction', 'anilibrary')}
+								value={normalizeExitMode(exitMode)}
+								options={[
+									{
+										label: __('Reverse (back the way it came)', 'anilibrary'),
+										value: 'rewind',
+									},
+									{
+										label: __('Continue (keep traveling)', 'anilibrary'),
+										value: 'continue',
+									},
+								]}
+								onChange={(value) => setAttributes({ exitMode: normalizeExitMode(value) })}
+								help={__(
+									'Reverse rewinds the entrance. Continue keeps motion going in the same direction.',
+									'anilibrary'
+								)}
+							/>
+						)}
 						{trigger === 'scroll' && (
 							<RangeControl
 								label={__('How much should be visible before it starts (%)', 'anilibrary')}
@@ -1026,6 +1052,7 @@ registerBlockType(metadata.name, {
 			loop,
 			clickToggle,
 			animationMode,
+			exitMode,
 			hideUntilHover,
 			textGranularity,
 			inheritParentDelay,
@@ -1043,6 +1070,7 @@ registerBlockType(metadata.name, {
 		} = attributes;
 		const effectiveTrigger = isMediaScrollPreset(preset) ? 'scroll-media' : trigger;
 		const normalizedAnimationMode = normalizeAnimationMode(animationMode);
+		const normalizedExitMode = normalizeExitMode(exitMode);
 
 		const blockProps = useBlockProps.save({
 			className: 'abw-wrapper',
@@ -1061,9 +1089,12 @@ registerBlockType(metadata.name, {
 			'data-ffaw-threshold': String(threshold),
 			'data-ffaw-loop': !isMediaScrollPreset(preset) && loop ? '1' : '0',
 			'data-ffaw-click-toggle': clickToggle ? '1' : '0',
-			// Omit default so existing saved markup stays valid.
+			// Omit defaults so existing saved markup stays valid.
 			...(normalizedAnimationMode !== 'in'
 				? { 'data-ffaw-animation-mode': normalizedAnimationMode }
+				: {}),
+			...(normalizedAnimationMode === 'both' && normalizedExitMode !== 'rewind'
+				? { 'data-ffaw-exit-mode': normalizedExitMode }
 				: {}),
 			'data-ffaw-hide-until-hover': hideUntilHover ? '1' : '0',
 			'data-ffaw-text-granularity': textGranularity,
