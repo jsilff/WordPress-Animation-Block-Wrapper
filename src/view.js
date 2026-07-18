@@ -964,12 +964,19 @@ function animateChildren(wrapper, reverse = false, config = {}) {
 }
 
 function playExitAnimation(wrapper, config = {}) {
-	// If entrance is still in its delay window (or never started), cancel and re-prime
-	// instead of playing an exit that looks like the entrance already happened.
+	// Still in delay / never started: cancel and restore the primed invisible state.
 	if (!hasEntranceVisuallyStarted(wrapper)) {
 		cancelPendingEntrance(wrapper, config);
 		return false;
 	}
+
+	// Entrance is mid-flight: let it finish, then exit (full cycle, not interrupted).
+	if (!hasEntranceFullyCompleted(wrapper)) {
+		queueExitAfterEntrance(wrapper, config);
+		return 'queued';
+	}
+
+	clearQueuedExit(wrapper);
 	wrapper.abwEntranceCompleted = false;
 	animateChildren(wrapper, true, {
 		...config,
@@ -984,9 +991,12 @@ function playExitAnimation(wrapper, config = {}) {
  * animate as if the entrance already ran.
  */
 function hasEntranceVisuallyStarted(wrapper) {
+	if (wrapper.abwEntranceCompleted) {
+		return true;
+	}
 	const animations = Array.isArray(wrapper.abwAnimations) ? wrapper.abwAnimations : [];
 	if (!animations.length) {
-		return !!wrapper.abwEntranceCompleted;
+		return false;
 	}
 	return animations.some((animation) => {
 		if (animation.playState === 'finished') {
@@ -1004,20 +1014,88 @@ function hasEntranceVisuallyStarted(wrapper) {
 	});
 }
 
-function cancelPendingEntrance(wrapper, config = {}) {
-	cancelWrapperAnimations(wrapper);
-	wrapper.abwEntranceCompleted = false;
+function hasEntranceFullyCompleted(wrapper) {
+	if (wrapper.abwEntranceCompleted) {
+		return true;
+	}
+	const animations = Array.isArray(wrapper.abwAnimations) ? wrapper.abwAnimations : [];
+	if (!animations.length) {
+		return false;
+	}
+	return animations.every((animation) => animation.playState === 'finished');
+}
+
+function clearQueuedExit(wrapper) {
+	wrapper.abwExitQueued = false;
+	wrapper.abwExitQueueToken = (wrapper.abwExitQueueToken || 0) + 1;
+}
+
+function queueExitAfterEntrance(wrapper, config = {}) {
+	const animations = Array.isArray(wrapper.abwAnimations) ? wrapper.abwAnimations : [];
+	if (!animations.length) {
+		cancelPendingEntrance(wrapper, config);
+		return;
+	}
+
+	const token = (wrapper.abwExitQueueToken || 0) + 1;
+	wrapper.abwExitQueueToken = token;
+	wrapper.abwExitQueued = true;
+
+	Promise.allSettled(
+		animations.map((animation) => animation.finished.catch(() => undefined))
+	).then(() => {
+		if (wrapper.abwExitQueueToken !== token || !wrapper.abwExitQueued) {
+			return;
+		}
+		wrapper.abwExitQueued = false;
+
+		if (typeof config.shouldProceed === 'function' && !config.shouldProceed()) {
+			return;
+		}
+
+		const completedCleanly = animations.every(
+			(animation) => animation.playState === 'finished'
+		);
+		if (!completedCleanly) {
+			cancelPendingEntrance(wrapper, config);
+			return;
+		}
+
+		wrapper.abwEntranceCompleted = true;
+		playExitAnimation(wrapper, config);
+	});
+}
+
+function enforceInitialInvisibleState(wrapper, config = {}) {
 	const animationState = resolveWrapperAnimationState(wrapper, config.directionOverride);
 	const targets = mergeFollowTargets(
 		wrapper,
 		getAnimationTargets(wrapper, animationState.preset, animationState.textGranularity)
 	);
+
+	if (!keyframesStartHidden(animationState.keyframes)) {
+		targets.forEach((target) => {
+			clearInlineState(target);
+		});
+		return;
+	}
+
 	targets.forEach((target) => {
 		applyInitialState(target, animationState.keyframes);
 	});
+}
+
+function cancelPendingEntrance(wrapper, config = {}) {
+	clearQueuedExit(wrapper);
+	cancelWrapperAnimations(wrapper);
+	wrapper.abwEntranceCompleted = false;
+
 	if (typeof config.onSkipped === 'function') {
 		config.onSkipped();
+		return;
 	}
+
+	enforceInitialInvisibleState(wrapper, config);
 }
 
 function isWrapperInViewport(wrapper, threshold) {
@@ -1728,31 +1806,27 @@ function setupWrapper(wrapper) {
 	}
 
 	if (trigger === 'hover') {
-		const reprimeHoverState = () => {
-			if (!shouldPrimeHover) {
-				return;
-			}
+		const restoreInvisibleIdle = () => {
 			if (wrapper.matches(':hover')) {
 				return;
 			}
-			wrapper.classList.add('abw-hide-until-hover');
-			const resetTargets = mergeFollowTargets(
-				wrapper,
-				getAnimationTargets(wrapper, preset, textGranularity)
-			);
-			const resetState = resolveCurrentAnimationState();
-			resetTargets.forEach((target) => {
-				applyInitialState(target, resetState.keyframes);
+			if (shouldPrimeHover) {
+				wrapper.classList.add('abw-hide-until-hover');
+			}
+			enforceInitialInvisibleState(wrapper, {
+				directionOverride: resolveDirectionOverride(),
 			});
 		};
 		wrapper.addEventListener('mouseenter', () => {
+			clearQueuedExit(wrapper);
 			triggerWrapperAnimation();
 		});
 		wrapper.addEventListener('mouseleave', () => {
 			playExitAnimation(wrapper, {
 				directionOverride: resolveDirectionOverride(),
-				onSkipped: reprimeHoverState,
-				onComplete: reprimeHoverState,
+				shouldProceed: () => !wrapper.matches(':hover'),
+				onSkipped: restoreInvisibleIdle,
+				onComplete: restoreInvisibleIdle,
 			});
 		});
 		return;
@@ -1767,14 +1841,25 @@ function setupWrapper(wrapper) {
 			}
 			isOn = !isOn;
 			if (isOn) {
+				clearQueuedExit(wrapper);
 				triggerWrapperAnimation();
 				return;
 			}
-			// If entrance never visually started (still delaying), stay off without a fake exit.
-			const didExit = playExitAnimation(wrapper, {
+			const exitResult = playExitAnimation(wrapper, {
 				directionOverride: resolveDirectionOverride(),
+				shouldProceed: () => !isOn,
+				onSkipped: () => {
+					enforceInitialInvisibleState(wrapper, {
+						directionOverride: resolveDirectionOverride(),
+					});
+				},
+				onComplete: () => {
+					enforceInitialInvisibleState(wrapper, {
+						directionOverride: resolveDirectionOverride(),
+					});
+				},
 			});
-			if (!didExit) {
+			if (exitResult === false) {
 				isOn = false;
 			}
 		});
@@ -1820,6 +1905,7 @@ function setupWrapper(wrapper) {
 			if (isWrapperInViewport(wrapper, threshold)) {
 				isInView = true;
 				hasPlayed = true;
+				clearQueuedExit(wrapper);
 				triggerWrapperAnimation();
 				if (once) {
 					observer.unobserve(wrapper);
@@ -1842,6 +1928,7 @@ function setupWrapper(wrapper) {
 							return;
 						}
 						isInView = true;
+						clearQueuedExit(wrapper);
 						triggerWrapperAnimation();
 						hasPlayed = true;
 						if (once) {
@@ -1855,18 +1942,15 @@ function setupWrapper(wrapper) {
 						}
 						playExitAnimation(wrapper, {
 							directionOverride: resolveDirectionOverride(),
+							shouldProceed: () => !isInView,
+							onSkipped: () => {
+								enforceInitialInvisibleState(wrapper, {
+									directionOverride: resolveDirectionOverride(),
+								});
+							},
 							onComplete: () => {
-								const resetAnimationState = resolveCurrentAnimationState();
-								const resetTargets = mergeFollowTargets(
-									wrapper,
-									getAnimationTargets(
-										wrapper,
-										resetAnimationState.preset,
-										resetAnimationState.textGranularity
-									)
-								);
-								resetTargets.forEach((target) => {
-									applyInitialState(target, resetAnimationState.keyframes);
+								enforceInitialInvisibleState(wrapper, {
+									directionOverride: resolveDirectionOverride(),
 								});
 							},
 						});
