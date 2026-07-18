@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## Unreleased
+## 1.2.0 - 2026-07-18
 
 - Added derived exit styles from entrance presets — no separate exit catalog.
 - Replaced exit-style config with **Animate In / Out / In & Out** (hidden for Scrub, loop presets, load, and loop trigger).
@@ -20,6 +20,7 @@ All notable changes to this project will be documented in this file.
 - Expanded nested scenario coverage: target matrix, inherit-delay stacks, hide-until-hover arming, parent-replay cascading, and config smoke combos.
 - Animation Settings panel now opens by default in the editor sidebar.
 - Added **Remove animation & keep content** to unwrap inner blocks without manually moving them out first (also registers Ungroup).
+- Set WordPress.org contributor to `jsilff`.
 
 ## 1.1.0 - 2026-06-03
 
