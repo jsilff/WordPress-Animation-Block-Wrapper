@@ -906,6 +906,8 @@ function animateChildren(wrapper, reverse = false, config = {}) {
 			window.clearTimeout(existingTimer);
 			wrapper.dataset.abwRestoreTimer = '';
 		}
+	} else {
+		wrapper.abwEntranceCompleted = false;
 	}
 	const animations = animateTargets(
 		targets,
@@ -928,6 +930,21 @@ function animateChildren(wrapper, reverse = false, config = {}) {
 		scheduleTextRestore(wrapper, duration, delay, effectiveStagger, targets.length, shouldLoop);
 	}
 
+	if (!reverse && iterations !== Infinity && animations.length) {
+		Promise.allSettled(
+			animations.map((animation) =>
+				animation.finished.catch(() => undefined)
+			)
+		).then(() => {
+			const completedCleanly = animations.every(
+				(animation) => animation.playState === 'finished'
+			);
+			if (completedCleanly) {
+				wrapper.abwEntranceCompleted = true;
+			}
+		});
+	}
+
 	if (typeof config.onComplete === 'function' && iterations !== Infinity && animations.length) {
 		Promise.allSettled(
 			animations.map((animation) =>
@@ -947,10 +964,60 @@ function animateChildren(wrapper, reverse = false, config = {}) {
 }
 
 function playExitAnimation(wrapper, config = {}) {
+	// If entrance is still in its delay window (or never started), cancel and re-prime
+	// instead of playing an exit that looks like the entrance already happened.
+	if (!hasEntranceVisuallyStarted(wrapper)) {
+		cancelPendingEntrance(wrapper, config);
+		return false;
+	}
+	wrapper.abwEntranceCompleted = false;
 	animateChildren(wrapper, true, {
 		...config,
 		exitMode: config.exitMode || normalizeExitMode(wrapper.dataset.ffawExitMode || 'rewind'),
 	});
+	return true;
+}
+
+/**
+ * True once any target has left its delay phase (or finished). During delay with
+ * fill:both the element still shows the entrance "from" frame — exiting then would
+ * animate as if the entrance already ran.
+ */
+function hasEntranceVisuallyStarted(wrapper) {
+	const animations = Array.isArray(wrapper.abwAnimations) ? wrapper.abwAnimations : [];
+	if (!animations.length) {
+		return !!wrapper.abwEntranceCompleted;
+	}
+	return animations.some((animation) => {
+		if (animation.playState === 'finished') {
+			return true;
+		}
+		const currentTime = animation.currentTime;
+		if (currentTime === null) {
+			return false;
+		}
+		let delay = 0;
+		if (animation.effect && typeof animation.effect.getTiming === 'function') {
+			delay = Number(animation.effect.getTiming().delay) || 0;
+		}
+		return currentTime >= delay;
+	});
+}
+
+function cancelPendingEntrance(wrapper, config = {}) {
+	cancelWrapperAnimations(wrapper);
+	wrapper.abwEntranceCompleted = false;
+	const animationState = resolveWrapperAnimationState(wrapper, config.directionOverride);
+	const targets = mergeFollowTargets(
+		wrapper,
+		getAnimationTargets(wrapper, animationState.preset, animationState.textGranularity)
+	);
+	targets.forEach((target) => {
+		applyInitialState(target, animationState.keyframes);
+	});
+	if (typeof config.onSkipped === 'function') {
+		config.onSkipped();
+	}
 }
 
 function isWrapperInViewport(wrapper, threshold) {
@@ -1661,30 +1728,31 @@ function setupWrapper(wrapper) {
 	}
 
 	if (trigger === 'hover') {
+		const reprimeHoverState = () => {
+			if (!shouldPrimeHover) {
+				return;
+			}
+			if (wrapper.matches(':hover')) {
+				return;
+			}
+			wrapper.classList.add('abw-hide-until-hover');
+			const resetTargets = mergeFollowTargets(
+				wrapper,
+				getAnimationTargets(wrapper, preset, textGranularity)
+			);
+			const resetState = resolveCurrentAnimationState();
+			resetTargets.forEach((target) => {
+				applyInitialState(target, resetState.keyframes);
+			});
+		};
 		wrapper.addEventListener('mouseenter', () => {
 			triggerWrapperAnimation();
 		});
 		wrapper.addEventListener('mouseleave', () => {
 			playExitAnimation(wrapper, {
 				directionOverride: resolveDirectionOverride(),
-				onComplete: () => {
-					if (!shouldPrimeHover) {
-						return;
-					}
-					// Pointer may have returned before exit finished; do not re-hide while hovered.
-					if (wrapper.matches(':hover')) {
-						return;
-					}
-					wrapper.classList.add('abw-hide-until-hover');
-					const resetTargets = mergeFollowTargets(
-						wrapper,
-						getAnimationTargets(wrapper, preset, textGranularity)
-					);
-					const resetState = resolveCurrentAnimationState();
-					resetTargets.forEach((target) => {
-						applyInitialState(target, resetState.keyframes);
-					});
-				},
+				onSkipped: reprimeHoverState,
+				onComplete: reprimeHoverState,
 			});
 		});
 		return;
@@ -1702,9 +1770,13 @@ function setupWrapper(wrapper) {
 				triggerWrapperAnimation();
 				return;
 			}
-			playExitAnimation(wrapper, {
+			// If entrance never visually started (still delaying), stay off without a fake exit.
+			const didExit = playExitAnimation(wrapper, {
 				directionOverride: resolveDirectionOverride(),
 			});
+			if (!didExit) {
+				isOn = false;
+			}
 		});
 		return;
 	}

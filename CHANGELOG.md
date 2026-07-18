@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file.
 - Exit now plays on hover leave, click toggle off, and scroll leave when Play once is off.
 - Text exits reverse their stagger order (last unit leaves first).
 - Default missing `data-ffaw-once` to play-once (true), matching the React port — avoids viewport-edge hide/animate flicker.
+- Skip exit when entrance is still delayed (e.g. hover leave before delay elapses); cancel and re-prime instead.
 
 ## 1.1.0 - 2026-06-03
 
