@@ -17,6 +17,7 @@ All notable changes to this project will be documented in this file.
 - Fix nested-only parents (e.g. Rise wrapping Hover) getting zero targets so the outer effect never fired.
 - Hide-until-hover no longer forces nested wrappers hidden unless they join the parent animation (keeps independent Scrub visible).
 - Added automated jsdom scenario tests for nesting targets, hover visibility, delay inheritance, animation modes, and exit gating (`npm test`).
+- Expanded nested scenario coverage: target matrix, inherit-delay stacks, hide-until-hover arming, parent-replay cascading, and config smoke combos.
 
 ## 1.1.0 - 2026-06-03
 
