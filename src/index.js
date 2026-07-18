@@ -159,6 +159,16 @@ function getTriggerBadgeLabel(trigger) {
 	return labels[trigger] || __('Scroll', 'anilibrary');
 }
 
+function getAnimationModeBadgeLabel(mode) {
+	if (mode === 'out') {
+		return __('Out', 'anilibrary');
+	}
+	if (mode === 'both') {
+		return __('In & Out', 'anilibrary');
+	}
+	return __('In', 'anilibrary');
+}
+
 function getDirectionOptions(presetId) {
 	const scrollLinkedOptions = [
 		{ label: __('Scroll Direction', 'anilibrary'), value: 'scroll' },
@@ -652,7 +662,11 @@ registerBlockType(metadata.name, {
 		const activePreset = PRESETS.find((item) => item.id === preset);
 		const presetName = activePreset ? activePreset.label : preset;
 		const effectiveTrigger = isMediaScroll ? 'scroll-media' : trigger;
-		const presetBadgeLabel = `${presetName}: ${getTriggerBadgeLabel(effectiveTrigger)}`;
+		const modeLabel = getAnimationModeBadgeLabel(normalizeAnimationMode(animationMode));
+		const effectLabel = `${presetName}: ${getTriggerBadgeLabel(effectiveTrigger)}`;
+		const presetBadgeLabel = supportsAnimationMode(preset, effectiveTrigger)
+			? `${modeLabel} — ${effectLabel}`
+			: effectLabel;
 		const blockProps = useBlockProps({
 			className: `abw-editor-kind-${detectedKind} abw-editor-drop-zone${isDelayed ? ' abw-editor-is-delayed' : ''}`,
 		});

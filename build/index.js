@@ -608,7 +608,11 @@
 			const activePreset = PRESETS.find(function (item) { return item.id === preset; });
 			const presetName = activePreset ? activePreset.label : preset;
 			const effectiveTrigger = isMediaScroll ? 'scroll-media' : trigger;
-			const presetBadgeLabel = presetName + ': ' + getTriggerBadgeLabel(effectiveTrigger);
+			const modeLabel = getAnimationModeBadgeLabel(normalizeAnimationMode(animationMode));
+			const effectLabel = presetName + ': ' + getTriggerBadgeLabel(effectiveTrigger);
+			const presetBadgeLabel = supportsAnimationMode(preset, effectiveTrigger)
+				? modeLabel + ' — ' + effectLabel
+				: effectLabel;
 			const blockProps = useBlockProps({
 				className: 'abw-editor-kind-' + detectedKind + ' abw-editor-drop-zone' + (isDelayed ? ' abw-editor-is-delayed' : ''),
 			});
