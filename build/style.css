@@ -6,7 +6,10 @@
 	will-change: opacity, transform, filter;
 }
 
-.wp-block-animation-block-wrapper-wrapper.abw-wrapper.abw-hide-until-hover > * {
+.wp-block-animation-block-wrapper-wrapper.abw-wrapper.abw-hide-until-hover > *:not(.abw-wrapper),
+.wp-block-animation-block-wrapper-wrapper.abw-wrapper.abw-hide-until-hover > .abw-wrapper[data-ffaw-follow-parent-animation="1"],
+.wp-block-animation-block-wrapper-wrapper.abw-wrapper[data-ffaw-hide-until-hover="1"]:not(.abw-hover-armed) > *:not(.abw-wrapper),
+.wp-block-animation-block-wrapper-wrapper.abw-wrapper[data-ffaw-hide-until-hover="1"]:not(.abw-hover-armed) > .abw-wrapper[data-ffaw-follow-parent-animation="1"] {
 	opacity: 0 !important;
 }
 

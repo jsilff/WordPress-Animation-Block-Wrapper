@@ -1,9 +1,9 @@
 (function (wp) {
 	const { registerBlockType } = wp.blocks;
 	const { InspectorControls, InnerBlocks, useBlockProps, useInnerBlocksProps } = wp.blockEditor;
-	const { PanelBody, SelectControl, RangeControl, ToggleControl, Tooltip } = wp.components;
+	const { PanelBody, SelectControl, RangeControl, ToggleControl, Tooltip, Button } = wp.components;
 	const { __ } = wp.i18n;
-	const { useSelect } = wp.data;
+	const { useDispatch, useSelect } = wp.data;
 	const { useEffect, useMemo, useState, Fragment, createElement } = wp.element;
 
 	const metadata = {
@@ -28,6 +28,8 @@
 			threshold: { type: 'number', default: 0.25 },
 			loop: { type: 'boolean', default: false },
 			clickToggle: { type: 'boolean', default: false },
+			animationMode: { type: 'string', default: 'in' },
+			exitMode: { type: 'string', default: 'rewind' },
 			hideUntilHover: { type: 'boolean', default: false },
 			inheritParentDelay: { type: 'boolean', default: false },
 			followParentAnimation: { type: 'boolean', default: false },
@@ -155,6 +157,31 @@
 		return presetId === 'scroll-media';
 	}
 
+	function isLoopPreset(presetId) {
+		return ['pulse-soft', 'float-soft', 'bounce-soft'].indexOf(presetId) !== -1;
+	}
+
+	function supportsAnimationMode(presetId, trigger) {
+		if (isMediaScrollPreset(presetId) || isLoopPreset(presetId)) {
+			return false;
+		}
+		if (trigger === 'loop' || trigger === 'load' || trigger === 'scroll-media') {
+			return false;
+		}
+		return ['scroll', 'hover', 'click'].indexOf(trigger) !== -1;
+	}
+
+	function normalizeAnimationMode(value) {
+		if (value === 'out' || value === 'both') {
+			return value;
+		}
+		return 'in';
+	}
+
+	function normalizeExitMode(value) {
+		return value === 'continue' ? 'continue' : 'rewind';
+	}
+
 	function formatDelaySeconds(ms) {
 		const seconds = Math.max(0, Number(ms) || 0) / 1000;
 		const decimals = seconds < 1 ? 2 : 1;
@@ -172,6 +199,16 @@
 			loop: __('Loop continuously', 'anilibrary'),
 		};
 		return labels[trigger] || __('Scroll', 'anilibrary');
+	}
+
+	function getAnimationModeBadgeLabel(mode) {
+		if (mode === 'out') {
+			return __('Out', 'anilibrary');
+		}
+		if (mode === 'both') {
+			return __('In & Out', 'anilibrary');
+		}
+		return __('In', 'anilibrary');
 	}
 
 	function getDirectionOptions(presetId) {
@@ -325,20 +362,34 @@
 			spacing: { margin: true, padding: true },
 			layout: true,
 		},
+		transforms: {
+			ungroup: function (_attributes, innerBlocks) {
+				return innerBlocks;
+			},
+		},
 		edit: function (props) {
 			const { attributes, setAttributes, clientId } = props;
 			const {
 				preset, contentKind, trigger, intensity, direction, zoomMode, bounceCount,
-				duration, delay, stagger, easing, once, threshold, loop, clickToggle, hideUntilHover, textGranularity, inheritParentDelay, followParentAnimation,
+				duration, delay, stagger, easing, once, threshold, loop, clickToggle, animationMode, exitMode, hideUntilHover, textGranularity, inheritParentDelay, followParentAnimation,
 				mediaScrollPlaybackDirection, mediaScrollDirectionLimit, mediaScrollPlaybackCycles, mediaScrollProgressSource, mediaScrollViewportEdge,
 				mediaScrollViewportStart, mediaScrollViewportEnd, mediaScrollStartAtPageTop, mediaScrollDocumentStart, mediaScrollDocumentEnd,
 			} = attributes;
 			const [libraryCategory, setLibraryCategory] = useState('recommended');
+			const { replaceBlocks, removeBlock } = useDispatch('core/block-editor');
 
 			const innerBlocks = useSelect(function (select) {
 				const block = select('core/block-editor').getBlock(clientId);
 				return (block && block.innerBlocks) || [];
 			}, [clientId]);
+
+			const removeAnimationKeepContent = function () {
+				if (innerBlocks.length) {
+					replaceBlocks(clientId, innerBlocks);
+					return;
+				}
+				removeBlock(clientId);
+			};
 			const hasAnimationWrapperParent = useSelect(function (select) {
 				const editorStore = select('core/block-editor');
 				const parentIds = editorStore.getBlockParents(clientId);
@@ -467,6 +518,21 @@
 					shouldUpdate = true;
 				}
 
+				if (!supportsAnimationMode(preset, trigger) && normalizeAnimationMode(animationMode) !== 'in') {
+					updates.animationMode = 'in';
+					shouldUpdate = true;
+				}
+
+				if (normalizeAnimationMode(animationMode) === 'both' && trigger === 'scroll' && once) {
+					updates.once = false;
+					shouldUpdate = true;
+				}
+
+				if (normalizeAnimationMode(animationMode) === 'both' && trigger === 'click' && !clickToggle) {
+					updates.clickToggle = true;
+					shouldUpdate = true;
+				}
+
 				if (trigger !== 'loop' && loop) {
 					updates.loop = false;
 					shouldUpdate = true;
@@ -557,7 +623,7 @@
 				if (shouldUpdate) {
 					setAttributes(updates);
 				}
-			}, [bounceCount, contentKind, detectedKind, direction, filteredPresets, followParentAnimation, hasAnimationWrapperParent, hasScrollControlledMedia, hideUntilHover, inheritParentDelay, isMediaScroll, loop, mediaScrollDirectionLimit, mediaScrollPlaybackDirection, mediaScrollProgressSource, mediaScrollStartAtPageTop, mediaScrollViewportEdge, mediaScrollViewportEnd, mediaScrollViewportStart, once, preset, primaryRecommendation, setAttributes, stagger, textGranularity, trigger, zoomMode]);
+			}, [animationMode, bounceCount, clickToggle, contentKind, detectedKind, direction, filteredPresets, followParentAnimation, hasAnimationWrapperParent, hasScrollControlledMedia, hideUntilHover, inheritParentDelay, isMediaScroll, loop, mediaScrollDirectionLimit, mediaScrollPlaybackDirection, mediaScrollProgressSource, mediaScrollStartAtPageTop, mediaScrollViewportEdge, mediaScrollViewportEnd, mediaScrollViewportStart, once, preset, primaryRecommendation, setAttributes, stagger, textGranularity, trigger, zoomMode]);
 
 			const isDelayed = Number(effectiveDelayMs) > 0;
 			const delayBadgeLabel = isDelayed
@@ -566,7 +632,11 @@
 			const activePreset = PRESETS.find(function (item) { return item.id === preset; });
 			const presetName = activePreset ? activePreset.label : preset;
 			const effectiveTrigger = isMediaScroll ? 'scroll-media' : trigger;
-			const presetBadgeLabel = presetName + ': ' + getTriggerBadgeLabel(effectiveTrigger);
+			const modeLabel = getAnimationModeBadgeLabel(normalizeAnimationMode(animationMode));
+			const effectLabel = presetName + ': ' + getTriggerBadgeLabel(effectiveTrigger);
+			const presetBadgeLabel = supportsAnimationMode(preset, effectiveTrigger)
+				? modeLabel + ' — ' + effectLabel
+				: effectLabel;
 			const blockProps = useBlockProps({
 				className: 'abw-editor-kind-' + detectedKind + ' abw-editor-drop-zone' + (isDelayed ? ' abw-editor-is-delayed' : ''),
 			});
@@ -627,7 +697,7 @@
 					),
 					createElement(
 						PanelBody,
-						{ title: __('Animation Settings', 'anilibrary'), initialOpen: false },
+						{ title: __('Animation Settings', 'anilibrary'), initialOpen: true },
 						!isMediaScroll
 							? createElement(SelectControl, {
 									label: __('Trigger', 'anilibrary'),
@@ -640,6 +710,44 @@
 										{ label: __('Loop continuously', 'anilibrary'), value: 'loop' },
 									],
 									onChange: function (value) { setAttributes({ trigger: value, loop: value === 'loop' }); },
+							  })
+							: null,
+						supportsAnimationMode(preset, trigger)
+							? createElement(SelectControl, {
+									label: __('Animate', 'anilibrary'),
+									value: normalizeAnimationMode(animationMode),
+									options: [
+										{ label: __('Animate In', 'anilibrary'), value: 'in' },
+										{ label: __('Animate Out', 'anilibrary'), value: 'out' },
+										{ label: __('Animate In & Out', 'anilibrary'), value: 'both' },
+									],
+									onChange: function (value) {
+										var mode = normalizeAnimationMode(value);
+										var updates = { animationMode: mode };
+										if (mode === 'both' && trigger === 'scroll') {
+											updates.once = false;
+										}
+										if (mode === 'both' && trigger === 'click') {
+											updates.clickToggle = true;
+										}
+										if (mode === 'in' && trigger === 'click') {
+											updates.clickToggle = false;
+										}
+										setAttributes(updates);
+									},
+									help: __('In plays on enter, Out plays on leave, In & Out plays both. Exit uses the same preset.', 'anilibrary'),
+							  })
+							: null,
+						supportsAnimationMode(preset, trigger) && normalizeAnimationMode(animationMode) === 'both'
+							? createElement(SelectControl, {
+									label: __('Exit direction', 'anilibrary'),
+									value: normalizeExitMode(exitMode),
+									options: [
+										{ label: __('Reverse (back the way it came)', 'anilibrary'), value: 'rewind' },
+										{ label: __('Continue (keep traveling)', 'anilibrary'), value: 'continue' },
+									],
+									onChange: function (value) { setAttributes({ exitMode: normalizeExitMode(value) }); },
+									help: __('Reverse rewinds the entrance. Continue keeps motion going in the same direction.', 'anilibrary'),
 							  })
 							: null,
 						trigger === 'scroll'
@@ -798,18 +906,18 @@
 							  ),
 						hasAnimationWrapperParent
 							? createElement(ToggleControl, {
-									label: __('Add parent delay (nested blocks)', 'anilibrary'),
+									label: __('Match parent timing', 'anilibrary'),
 									checked: inheritParentDelay,
 									onChange: function (value) { setAttributes({ inheritParentDelay: value }); },
-									help: __('Adds the parent block delay to this block delay.', 'anilibrary'),
+									help: __('Only shares timing: adds the parent delay to this block. This block still runs its own effect.', 'anilibrary'),
 							  })
 							: null,
 						hasAnimationWrapperParent
 							? createElement(ToggleControl, {
-									label: __('Follow parent animation', 'anilibrary'),
+									label: __('Join parent animation', 'anilibrary'),
 									checked: followParentAnimation,
 									onChange: function (value) { setAttributes({ followParentAnimation: value }); },
-									help: __('Lets this nested block follow the parent effect state (for example, start hidden if parent starts hidden).', 'anilibrary'),
+									help: __('Include this block in the parent motion (fade/rise together) and shared hide/show. Leave off to stay independent — for example, keep Scrub visible while the parent hover-fades other content.', 'anilibrary'),
 							  })
 							: null,
 						!isMediaScroll
@@ -854,14 +962,14 @@
 									step: 1,
 							  })
 							: null,
-							trigger === 'click'
+							trigger === 'click' && normalizeAnimationMode(animationMode) !== 'both' && normalizeAnimationMode(animationMode) !== 'out'
 								? createElement(ToggleControl, {
 										label: __('Click again to reverse', 'anilibrary'),
 									checked: clickToggle,
 									onChange: function (value) { setAttributes({ clickToggle: value }); },
 							  })
 							: null,
-						trigger === 'hover' && HOVER_HIDE_SUPPORTED_PRESETS.has(preset)
+						trigger === 'hover' && HOVER_HIDE_SUPPORTED_PRESETS.has(preset) && normalizeAnimationMode(animationMode) !== 'out'
 							? createElement(ToggleControl, {
 									label: __('Hide until hover', 'anilibrary'),
 									checked: hideUntilHover,
@@ -869,7 +977,7 @@
 									help: __('Keeps this hidden until you hover.', 'anilibrary'),
 							  })
 							: null,
-						trigger !== 'loop'
+						trigger !== 'loop' && normalizeAnimationMode(animationMode) !== 'both'
 							? createElement(ToggleControl, {
 									label: isMediaScroll ? __('Stop after first full scrub', 'anilibrary') : __('Play once', 'anilibrary'),
 									checked: once,
@@ -903,7 +1011,29 @@
 									max: 1000,
 									step: 25,
 							  })
-							: null
+							: null,
+						createElement(
+							'div',
+							{ className: 'abw-unwrap-control' },
+							createElement(
+								Button,
+								{
+									variant: 'secondary',
+									isDestructive: true,
+									onClick: removeAnimationKeepContent,
+								},
+								innerBlocks.length
+									? __('Remove animation & keep content', 'anilibrary')
+									: __('Remove empty wrapper', 'anilibrary')
+							),
+							createElement(
+								'p',
+								{ className: 'abw-unwrap-help' },
+								innerBlocks.length
+									? __('Deletes this AniLibrary wrapper but leaves the blocks inside in place.', 'anilibrary')
+									: __('Removes this empty AniLibrary wrapper.', 'anilibrary')
+							)
+						)
 					)
 				),
 				createElement(
@@ -924,13 +1054,14 @@
 		save: function (props) {
 			const {
 				preset, contentKind, trigger, intensity, direction, zoomMode, bounceCount,
-				duration, delay, stagger, easing, once, threshold, loop, clickToggle, hideUntilHover, textGranularity, inheritParentDelay, followParentAnimation,
+				duration, delay, stagger, easing, once, threshold, loop, clickToggle, animationMode, exitMode, hideUntilHover, textGranularity, inheritParentDelay, followParentAnimation,
 				mediaScrollPlaybackDirection, mediaScrollDirectionLimit, mediaScrollPlaybackCycles, mediaScrollProgressSource, mediaScrollViewportEdge,
 				mediaScrollViewportStart, mediaScrollViewportEnd, mediaScrollStartAtPageTop, mediaScrollDocumentStart, mediaScrollDocumentEnd,
 			} = props.attributes;
 			const effectiveTrigger = isMediaScrollPreset(preset) ? 'scroll-media' : trigger;
-
-			const blockProps = useBlockProps.save({
+			const normalizedAnimationMode = normalizeAnimationMode(animationMode);
+			const normalizedExitMode = normalizeExitMode(exitMode);
+			const saveProps = {
 				className: 'abw-wrapper',
 				'data-ffaw-preset': preset,
 				'data-ffaw-content-kind': contentKind,
@@ -961,7 +1092,21 @@
 				'data-ffaw-media-scroll-start-at-page-top': mediaScrollStartAtPageTop ? '1' : '0',
 				'data-ffaw-media-scroll-document-start': String(mediaScrollDocumentStart),
 				'data-ffaw-media-scroll-document-end': String(mediaScrollDocumentEnd),
-			});
+			};
+			// Omit default `in` so older saved markup stays valid — except when missing
+			// mode would be inferred as legacy `both` (scroll replay / click toggle).
+			const shouldSerializeAnimationMode =
+				normalizedAnimationMode !== 'in' ||
+				(!once && effectiveTrigger === 'scroll') ||
+				(clickToggle && effectiveTrigger === 'click');
+			if (shouldSerializeAnimationMode) {
+				saveProps['data-ffaw-animation-mode'] = normalizedAnimationMode;
+			}
+			if (normalizedAnimationMode === 'both' && normalizedExitMode !== 'rewind') {
+				saveProps['data-ffaw-exit-mode'] = normalizedExitMode;
+			}
+
+			const blockProps = useBlockProps.save(saveProps);
 
 			return createElement('div', blockProps, createElement(InnerBlocks.Content));
 		},

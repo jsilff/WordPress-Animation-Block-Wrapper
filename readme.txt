@@ -1,10 +1,10 @@
 === AniLibrary ===
-Contributors: fearlessfuture
+Contributors: jsilff
 Tags: gutenberg, block, animation, scroll, motion
 Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.1.0
+Stable tag: 1.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -18,10 +18,12 @@ Features:
 
 * Works with core blocks, groups, columns, and most custom blocks.
 * Choose when animations start: page load, scroll into view, hover, click, or loop.
+* Animate in, out, or both — with reverse or continue exit directions derived from the same preset.
 * Use the Scrub media preset to move through a video or GIF as someone scrolls.
 * GIFs can move in steps; videos give the smoothest result.
 * Start top-of-page scrub media at the beginning when the page first loads.
 * Repeat scrubbed media playback across a scroll range for multiple visible cycles.
+* Nest wrappers with match-parent timing and join-parent animation controls.
 * Suggests animation styles based on the content inside.
 * Respects users who prefer reduced motion.
 * Lightweight front-end output.
@@ -52,11 +54,23 @@ No. Front-end assets only load on pages where AniLibrary is used.
 
 AniLibrary automatically reduces motion for those users.
 
+= How do I remove an animation without losing the content? =
+
+Select the AniLibrary wrapper and use "Remove animation & keep content" in Animation Settings, or Ungroup.
+
 == Screenshots ==
 
 1. AniLibrary styles and settings in the editor sidebar.
 
 == Changelog ==
+
+= 1.2.0 =
+* Added Animate In / Out / In & Out, with Reverse or Continue exit directions derived from entrance presets.
+* Improved exit timing so delayed entrances skip exit, and mid-entrance exits wait for completion.
+* Fixed nested wrappers so outer effects animate nested shells, and independent Scrub stays visible under hide-until-hover.
+* Clarified Match parent timing vs Join parent animation nesting controls.
+* Animation Settings opens by default; added Remove animation & keep content (Ungroup).
+* Added automated nesting and animation scenario tests.
 
 = 1.1.0 =
 * Added the Scrub media preset for videos and animated GIFs.
@@ -73,6 +87,9 @@ AniLibrary automatically reduces motion for those users.
 * Added reduced-motion-safe runtime defaults.
 
 == Upgrade Notice ==
+
+= 1.2.0 =
+Adds in/out animation modes, safer exit timing, nested wrapper fixes, and unwrap-from-sidebar.
 
 = 1.1.0 =
 Adds scroll-controlled video playback and contextual media scroll controls.

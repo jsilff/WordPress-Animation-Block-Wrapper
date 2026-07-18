@@ -6,6 +6,7 @@ import {
 	useInnerBlocksProps,
 } from '@wordpress/block-editor';
 import {
+	Button,
 	PanelBody,
 	SelectControl,
 	RangeControl,
@@ -13,7 +14,7 @@ import {
 	Tooltip,
 } from '@wordpress/components';
 import { __ } from '@wordpress/i18n';
-import { useSelect } from '@wordpress/data';
+import { useDispatch, useSelect } from '@wordpress/data';
 import { useEffect, useMemo, useState } from '@wordpress/element';
 
 import metadata from '../block.json';
@@ -115,6 +116,31 @@ function isMediaScrollPreset(presetId) {
 	return presetId === 'scroll-media';
 }
 
+function isLoopPreset(presetId) {
+	return ['pulse-soft', 'float-soft', 'bounce-soft'].includes(presetId);
+}
+
+function supportsAnimationMode(presetId, trigger) {
+	if (isMediaScrollPreset(presetId) || isLoopPreset(presetId)) {
+		return false;
+	}
+	if (trigger === 'loop' || trigger === 'load' || trigger === 'scroll-media') {
+		return false;
+	}
+	return ['scroll', 'hover', 'click'].includes(trigger);
+}
+
+function normalizeAnimationMode(value) {
+	if (value === 'out' || value === 'both') {
+		return value;
+	}
+	return 'in';
+}
+
+function normalizeExitMode(value) {
+	return value === 'continue' ? 'continue' : 'rewind';
+}
+
 function formatDelaySeconds(ms) {
 	const seconds = Math.max(0, Number(ms) || 0) / 1000;
 	const decimals = seconds < 1 ? 2 : 1;
@@ -132,6 +158,16 @@ function getTriggerBadgeLabel(trigger) {
 		loop: __('Loop', 'anilibrary'),
 	};
 	return labels[trigger] || __('Scroll', 'anilibrary');
+}
+
+function getAnimationModeBadgeLabel(mode) {
+	if (mode === 'out') {
+		return __('Out', 'anilibrary');
+	}
+	if (mode === 'both') {
+		return __('In & Out', 'anilibrary');
+	}
+	return __('In', 'anilibrary');
 }
 
 function getDirectionOptions(presetId) {
@@ -293,6 +329,10 @@ function detectScrollControlledMedia(innerBlocks) {
 registerBlockType(metadata.name, {
 	...metadata,
 	icon: ANILIBRARY_ICON,
+	transforms: {
+		// Enables the editor Ungroup action: replace this wrapper with its children.
+		ungroup: (_attributes, innerBlocks) => innerBlocks,
+	},
 	edit: ({ attributes, setAttributes, clientId }) => {
 		const {
 			preset,
@@ -310,6 +350,8 @@ registerBlockType(metadata.name, {
 			threshold,
 			loop,
 			clickToggle,
+			animationMode,
+			exitMode,
 			hideUntilHover,
 			textGranularity,
 			inheritParentDelay,
@@ -327,6 +369,7 @@ registerBlockType(metadata.name, {
 		} = attributes;
 
 		const [libraryCategory, setLibraryCategory] = useState('recommended');
+		const { replaceBlocks, removeBlock } = useDispatch('core/block-editor');
 
 		const innerBlocks = useSelect(
 			(select) => {
@@ -335,6 +378,14 @@ registerBlockType(metadata.name, {
 			},
 			[clientId]
 		);
+
+		const removeAnimationKeepContent = () => {
+			if (innerBlocks.length) {
+				replaceBlocks(clientId, innerBlocks);
+				return;
+			}
+			removeBlock(clientId);
+		};
 		const hasAnimationWrapperParent = useSelect(
 			(select) => {
 				const editorStore = select('core/block-editor');
@@ -511,6 +562,21 @@ registerBlockType(metadata.name, {
 				shouldUpdate = true;
 			}
 
+			if (!supportsAnimationMode(preset, trigger) && normalizeAnimationMode(animationMode) !== 'in') {
+				updates.animationMode = 'in';
+				shouldUpdate = true;
+			}
+
+			if (normalizeAnimationMode(animationMode) === 'both' && trigger === 'scroll' && once) {
+				updates.once = false;
+				shouldUpdate = true;
+			}
+
+			if (normalizeAnimationMode(animationMode) === 'both' && trigger === 'click' && !clickToggle) {
+				updates.clickToggle = true;
+				shouldUpdate = true;
+			}
+
 			if (trigger !== 'loop' && loop) {
 				updates.loop = false;
 				shouldUpdate = true;
@@ -601,7 +667,7 @@ registerBlockType(metadata.name, {
 			if (shouldUpdate) {
 				setAttributes(updates);
 			}
-		}, [bounceCount, contentKind, detectedKind, direction, filteredPresets, followParentAnimation, hasAnimationWrapperParent, hasScrollControlledMedia, hideUntilHover, inheritParentDelay, isMediaScroll, loop, mediaScrollDirectionLimit, mediaScrollPlaybackDirection, mediaScrollProgressSource, mediaScrollStartAtPageTop, mediaScrollViewportEdge, mediaScrollViewportEnd, mediaScrollViewportStart, once, preset, primaryRecommendation, setAttributes, stagger, textGranularity, trigger, zoomMode]);
+		}, [animationMode, bounceCount, clickToggle, contentKind, detectedKind, direction, filteredPresets, followParentAnimation, hasAnimationWrapperParent, hasScrollControlledMedia, hideUntilHover, inheritParentDelay, isMediaScroll, loop, mediaScrollDirectionLimit, mediaScrollPlaybackDirection, mediaScrollProgressSource, mediaScrollStartAtPageTop, mediaScrollViewportEdge, mediaScrollViewportEnd, mediaScrollViewportStart, once, preset, primaryRecommendation, setAttributes, stagger, textGranularity, trigger, zoomMode]);
 
 		const isDelayed = Number(effectiveDelayMs) > 0;
 		const delayBadgeLabel = isDelayed
@@ -610,7 +676,11 @@ registerBlockType(metadata.name, {
 		const activePreset = PRESETS.find((item) => item.id === preset);
 		const presetName = activePreset ? activePreset.label : preset;
 		const effectiveTrigger = isMediaScroll ? 'scroll-media' : trigger;
-		const presetBadgeLabel = `${presetName}: ${getTriggerBadgeLabel(effectiveTrigger)}`;
+		const modeLabel = getAnimationModeBadgeLabel(normalizeAnimationMode(animationMode));
+		const effectLabel = `${presetName}: ${getTriggerBadgeLabel(effectiveTrigger)}`;
+		const presetBadgeLabel = supportsAnimationMode(preset, effectiveTrigger)
+			? `${modeLabel} — ${effectLabel}`
+			: effectLabel;
 		const blockProps = useBlockProps({
 			className: `abw-editor-kind-${detectedKind} abw-editor-drop-zone${isDelayed ? ' abw-editor-is-delayed' : ''}`,
 		});
@@ -657,7 +727,7 @@ registerBlockType(metadata.name, {
 						</div>
 					</PanelBody>
 
-					<PanelBody title={__('Animation Settings', 'anilibrary')} initialOpen={false}>
+					<PanelBody title={__('Animation Settings', 'anilibrary')} initialOpen={true}>
 						{!isMediaScroll && (
 							<SelectControl
 								label={__('Trigger', 'anilibrary')}
@@ -670,6 +740,56 @@ registerBlockType(metadata.name, {
 									{ label: __('Loop continuously', 'anilibrary'), value: 'loop' },
 								]}
 								onChange={(value) => setAttributes({ trigger: value, loop: value === 'loop' })}
+							/>
+						)}
+						{supportsAnimationMode(preset, trigger) && (
+							<SelectControl
+								label={__('Animate', 'anilibrary')}
+								value={normalizeAnimationMode(animationMode)}
+								options={[
+									{ label: __('Animate In', 'anilibrary'), value: 'in' },
+									{ label: __('Animate Out', 'anilibrary'), value: 'out' },
+									{ label: __('Animate In & Out', 'anilibrary'), value: 'both' },
+								]}
+								onChange={(value) => {
+									const mode = normalizeAnimationMode(value);
+									const updates = { animationMode: mode };
+									if (mode === 'both' && trigger === 'scroll') {
+										updates.once = false;
+									}
+									if (mode === 'both' && trigger === 'click') {
+										updates.clickToggle = true;
+									}
+									if (mode === 'in' && trigger === 'click') {
+										updates.clickToggle = false;
+									}
+									setAttributes(updates);
+								}}
+								help={__(
+									'In plays on enter, Out plays on leave, In & Out plays both. Exit uses the same preset.',
+									'anilibrary'
+								)}
+							/>
+						)}
+						{supportsAnimationMode(preset, trigger) && normalizeAnimationMode(animationMode) === 'both' && (
+							<SelectControl
+								label={__('Exit direction', 'anilibrary')}
+								value={normalizeExitMode(exitMode)}
+								options={[
+									{
+										label: __('Reverse (back the way it came)', 'anilibrary'),
+										value: 'rewind',
+									},
+									{
+										label: __('Continue (keep traveling)', 'anilibrary'),
+										value: 'continue',
+									},
+								]}
+								onChange={(value) => setAttributes({ exitMode: normalizeExitMode(value) })}
+								help={__(
+									'Reverse rewinds the entrance. Continue keeps motion going in the same direction.',
+									'anilibrary'
+								)}
 							/>
 						)}
 						{trigger === 'scroll' && (
@@ -824,18 +944,18 @@ registerBlockType(metadata.name, {
 						)}
 						{hasAnimationWrapperParent && (
 							<ToggleControl
-								label={__('Add parent delay (nested blocks)', 'anilibrary')}
+								label={__('Match parent timing', 'anilibrary')}
 								checked={inheritParentDelay}
 								onChange={(value) => setAttributes({ inheritParentDelay: value })}
-								help={__('Adds the parent block delay to this block delay.', 'anilibrary')}
+								help={__('Only shares timing: adds the parent delay to this block. This block still runs its own effect.', 'anilibrary')}
 							/>
 						)}
 						{hasAnimationWrapperParent && (
 							<ToggleControl
-								label={__('Follow parent animation', 'anilibrary')}
+								label={__('Join parent animation', 'anilibrary')}
 								checked={followParentAnimation}
 								onChange={(value) => setAttributes({ followParentAnimation: value })}
-								help={__('Lets this nested block follow the parent effect state (for example, start hidden if parent starts hidden).', 'anilibrary')}
+								help={__('Include this block in the parent motion (fade/rise together) and shared hide/show. Leave off to stay independent — for example, keep Scrub visible while the parent hover-fades other content.', 'anilibrary')}
 							/>
 						)}
 						{!isMediaScroll && (
@@ -880,14 +1000,14 @@ registerBlockType(metadata.name, {
 								step={1}
 							/>
 						)}
-						{trigger === 'click' && (
+						{trigger === 'click' && normalizeAnimationMode(animationMode) !== 'both' && normalizeAnimationMode(animationMode) !== 'out' && (
 							<ToggleControl
 								label={__('Click again to reverse', 'anilibrary')}
 								checked={clickToggle}
 								onChange={(value) => setAttributes({ clickToggle: value })}
 							/>
 						)}
-						{trigger === 'hover' && HOVER_HIDE_SUPPORTED_PRESETS.has(preset) && (
+						{trigger === 'hover' && HOVER_HIDE_SUPPORTED_PRESETS.has(preset) && normalizeAnimationMode(animationMode) !== 'out' && (
 							<ToggleControl
 								label={__('Hide until hover', 'anilibrary')}
 								checked={hideUntilHover}
@@ -895,7 +1015,7 @@ registerBlockType(metadata.name, {
 								help={__('Keeps this hidden until you hover.', 'anilibrary')}
 							/>
 						)}
-						{trigger !== 'loop' && (
+						{trigger !== 'loop' && normalizeAnimationMode(animationMode) !== 'both' && (
 							<ToggleControl
 								label={isMediaScroll ? __('Stop after first full scrub', 'anilibrary') : __('Play once', 'anilibrary')}
 								checked={once}
@@ -930,6 +1050,22 @@ registerBlockType(metadata.name, {
 								step={25}
 							/>
 						)}
+						<div className="abw-unwrap-control">
+							<Button
+								variant="secondary"
+								isDestructive
+								onClick={removeAnimationKeepContent}
+							>
+								{innerBlocks.length
+									? __('Remove animation & keep content', 'anilibrary')
+									: __('Remove empty wrapper', 'anilibrary')}
+							</Button>
+							<p className="abw-unwrap-help">
+								{innerBlocks.length
+									? __('Deletes this AniLibrary wrapper but leaves the blocks inside in place.', 'anilibrary')
+									: __('Removes this empty AniLibrary wrapper.', 'anilibrary')}
+							</p>
+						</div>
 					</PanelBody>
 				</InspectorControls>
 				<div {...innerBlocksWrapperProps}>
@@ -959,6 +1095,8 @@ registerBlockType(metadata.name, {
 			threshold,
 			loop,
 			clickToggle,
+			animationMode,
+			exitMode,
 			hideUntilHover,
 			textGranularity,
 			inheritParentDelay,
@@ -975,6 +1113,14 @@ registerBlockType(metadata.name, {
 			mediaScrollDocumentEnd,
 		} = attributes;
 		const effectiveTrigger = isMediaScrollPreset(preset) ? 'scroll-media' : trigger;
+		const normalizedAnimationMode = normalizeAnimationMode(animationMode);
+		const normalizedExitMode = normalizeExitMode(exitMode);
+		// Omit default `in` so older saved markup stays valid — except when missing
+		// mode would be inferred as legacy `both` (scroll replay / click toggle).
+		const shouldSerializeAnimationMode =
+			normalizedAnimationMode !== 'in' ||
+			(!once && effectiveTrigger === 'scroll') ||
+			(clickToggle && effectiveTrigger === 'click');
 
 		const blockProps = useBlockProps.save({
 			className: 'abw-wrapper',
@@ -993,6 +1139,12 @@ registerBlockType(metadata.name, {
 			'data-ffaw-threshold': String(threshold),
 			'data-ffaw-loop': !isMediaScrollPreset(preset) && loop ? '1' : '0',
 			'data-ffaw-click-toggle': clickToggle ? '1' : '0',
+			...(shouldSerializeAnimationMode
+				? { 'data-ffaw-animation-mode': normalizedAnimationMode }
+				: {}),
+			...(normalizedAnimationMode === 'both' && normalizedExitMode !== 'rewind'
+				? { 'data-ffaw-exit-mode': normalizedExitMode }
+				: {}),
 			'data-ffaw-hide-until-hover': hideUntilHover ? '1' : '0',
 			'data-ffaw-text-granularity': textGranularity,
 			'data-ffaw-inherit-parent-delay': inheritParentDelay ? '1' : '0',

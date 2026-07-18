@@ -2,7 +2,7 @@
   "$schema": "https://schemas.wp.org/trunk/block.json",
   "apiVersion": 3,
   "name": "animation-block-wrapper/wrapper",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "title": "AniLibrary",
   "category": "design",
   "icon": "format-image",
@@ -78,6 +78,14 @@
     "clickToggle": {
       "type": "boolean",
       "default": false
+    },
+    "animationMode": {
+      "type": "string",
+      "default": "in"
+    },
+    "exitMode": {
+      "type": "string",
+      "default": "rewind"
     },
     "hideUntilHover": {
       "type": "boolean",

@@ -350,6 +350,130 @@ function keyframesStartHidden(keyframes) {
 	return !Number.isNaN(numericOpacity) && numericOpacity < 1;
 }
 
+function negateLinearToken(token) {
+	const parsed = parseNumericToken(token);
+	if (!parsed) {
+		return token;
+	}
+	return `${-parsed.value}${parsed.unit}`;
+}
+
+function mirrorScaleToken(token) {
+	const parsed = parseNumericToken(token);
+	if (!parsed) {
+		return token;
+	}
+	// Mirror the delta around identity: scale(0.92) ↔ scale(1.08).
+	return `${2 - parsed.value}${parsed.unit}`;
+}
+
+function invertDirectionalTransform(transform) {
+	if (!transform) {
+		return transform;
+	}
+
+	return String(transform)
+		.replace(/translate3d\(([^,]+),([^,]+),([^)]+)\)/g, (_m, x, y, z) =>
+			`translate3d(${negateLinearToken(x)}, ${negateLinearToken(y)}, ${negateLinearToken(z)})`
+		)
+		.replace(/translateX\(([^)]+)\)/g, (_m, x) => `translateX(${negateLinearToken(x)})`)
+		.replace(/translateY\(([^)]+)\)/g, (_m, y) => `translateY(${negateLinearToken(y)})`)
+		.replace(/translateZ\(([^)]+)\)/g, (_m, z) => `translateZ(${negateLinearToken(z)})`)
+		.replace(/scale\(([^)]+)\)/g, (_m, s) => `scale(${mirrorScaleToken(s)})`)
+		.replace(/rotate(?:X|Y|Z)?\(([^)]+)\)/g, (m, v) => {
+			const fn = m.slice(0, m.indexOf('('));
+			return `${fn}(${negateLinearToken(v)})`;
+		});
+}
+
+function stripKeyframeOffsets(keyframes) {
+	return keyframes.map((frame) => {
+		const next = { ...frame };
+		delete next.offset;
+		return next;
+	});
+}
+
+function deriveContinueExitEnd(entryOffFrame) {
+	const exitEnd = { ...entryOffFrame };
+	delete exitEnd.offset;
+	if (exitEnd.transform) {
+		exitEnd.transform = invertDirectionalTransform(exitEnd.transform);
+	}
+	return exitEnd;
+}
+
+/**
+ * Build exit keyframes from an entrance sequence without a separate preset catalog.
+ * - rewind: play the entry path backwards (back the way it came)
+ * - continue: keep opacity/filter exit cues, but flip directional transforms so motion continues
+ */
+function deriveExitKeyframes(entryKeyframes, exitMode = 'rewind') {
+	if (!Array.isArray(entryKeyframes) || entryKeyframes.length < 2) {
+		return entryKeyframes || [];
+	}
+
+	const mode = exitMode === 'continue' ? 'continue' : 'rewind';
+	const hasTimedOffsets = entryKeyframes.some(
+		(frame) => frame && typeof frame.offset === 'number'
+	);
+
+	// Multi-step loops (pulse/float/bounce) only support rewind cleanly.
+	if (mode === 'rewind' || hasTimedOffsets) {
+		return stripKeyframeOffsets([...entryKeyframes].reverse());
+	}
+
+	const restFrame = { ...entryKeyframes[entryKeyframes.length - 1] };
+	delete restFrame.offset;
+	const exitEnd = deriveContinueExitEnd(entryKeyframes[0]);
+	return [restFrame, exitEnd];
+}
+
+function normalizeExitMode(rawMode) {
+	return rawMode === 'continue' ? 'continue' : 'rewind';
+}
+
+/**
+ * Resolve play-once from data attrs. Default true when the attribute is unset
+ * (matches block.json / React DEFAULT_ANIMATION_OPTIONS.once).
+ * Only an explicit "0" disables once — treating missing as false would re-prime
+ * on every viewport-edge leave and flicker (same class of bug as spreading
+ * `once: undefined` over the React default).
+ */
+function resolveOnceOption(wrapper) {
+	return wrapper.dataset.ffawOnce !== '0';
+}
+
+/**
+ * in = entrance only, out = exit only, both = entrance + exit.
+ * Missing attribute defaults to in. Legacy inference keeps prior exit wiring working.
+ */
+function resolveAnimationMode(wrapper) {
+	const raw = wrapper.dataset.ffawAnimationMode;
+	if (raw === 'out' || raw === 'both' || raw === 'in') {
+		return raw;
+	}
+	const trigger = wrapper.dataset.ffawTrigger || 'scroll';
+	if (trigger === 'hover') {
+		return 'both';
+	}
+	if (trigger === 'click' && wrapper.dataset.ffawClickToggle === '1') {
+		return 'both';
+	}
+	if (trigger === 'scroll' && wrapper.dataset.ffawOnce === '0') {
+		return 'both';
+	}
+	return 'in';
+}
+
+function animationModeIncludesIn(mode) {
+	return mode === 'in' || mode === 'both';
+}
+
+function animationModeIncludesOut(mode) {
+	return mode === 'out' || mode === 'both';
+}
+
 function tokenizeText(text, mode) {
 	if (mode === 'character') {
 		return Array.from(text).map((char) =>
@@ -610,6 +734,10 @@ function getParentFollowWrapperTargets(wrapper) {
 	});
 }
 
+function getDirectChildTargets(wrapper) {
+	return Array.from(wrapper.children).filter((child) => child.nodeType === 1);
+}
+
 function mergeFollowTargets(wrapper, targets) {
 	const merged = Array.isArray(targets) ? [...targets] : [];
 	const followTargets = getParentFollowWrapperTargets(wrapper);
@@ -650,36 +778,47 @@ function getAnimationTargets(wrapper, preset, textGranularity) {
 				return closestWrapper === wrapper;
 			});
 		if (textUnits.length) {
-			return textUnits;
+			return mergeFollowTargets(wrapper, textUnits);
 		}
 	}
 
 	restoreTextSplits(wrapper);
-	const childTargets = Array.from(wrapper.children).filter((child) => child.nodeType === 1);
-	const nonNestedWrapperTargets = childTargets.filter((child) => {
+	const childTargets = getDirectChildTargets(wrapper);
+	const preferredTargets = childTargets.filter((child) => {
 		if (child.classList.contains('abw-wrapper')) {
+			// Only wrappers that opt into joining the parent motion.
 			return child.dataset.ffawFollowParentAnimation === '1';
 		}
-		// If this target contains any nested AniLibrary wrapper, let nested wrappers control their own lifecycle.
+		// Skip mixed blocks that contain their own nested AniLibrary wrappers.
 		if (child.querySelector('.abw-wrapper')) {
 			return false;
 		}
 		return true;
 	});
-	return nonNestedWrapperTargets;
+
+	// Nested-only parents (e.g. Rise wrapping a Hover child) previously got zero
+	// targets and never fired. Fall back to animating direct children as shells.
+	if (preferredTargets.length) {
+		return preferredTargets;
+	}
+	return childTargets;
 }
 
 function animateTargets(targets, keyframes, options, reverse) {
 	const isReverse = !!reverse;
-	const frames = isReverse ? [...keyframes].reverse() : keyframes;
+	const frames = isReverse
+		? deriveExitKeyframes(keyframes, options.exitMode)
+		: keyframes;
 	const animations = [];
+	const lastIndex = Math.max(0, targets.length - 1);
 	targets.forEach((target, index) => {
 		if (!isReverse) {
 			clearInlineState(target);
 		}
+		const staggerIndex = isReverse ? lastIndex - index : index;
 		const animation = target.animate(frames, {
 			duration: options.duration,
-			delay: options.delay + index * options.stagger,
+			delay: options.delay + staggerIndex * options.stagger,
 			easing: options.easing,
 			iterations: options.iterations,
 			fill: options.fill,
@@ -768,6 +907,9 @@ function animateChildren(wrapper, reverse = false, config = {}) {
 	const bounceCount = Math.max(1, Math.min(8, Number(wrapper.dataset.ffawBounceCount || 1)));
 	const isTextContent = wrapper.dataset.ffawContentKind === 'text';
 	const forceSingleIteration = !!config.forceSingleIteration;
+	const exitMode = normalizeExitMode(
+		config.exitMode || wrapper.dataset.ffawExitMode || 'rewind'
+	);
 	let effectiveStagger = isTextContent
 		? resolveTextStagger(rawStagger, textGranularity)
 		: 0;
@@ -782,7 +924,9 @@ function animateChildren(wrapper, reverse = false, config = {}) {
 	const hasCustomStartDelay = Number.isFinite(config.startDelay);
 	const delay = hasCustomStartDelay
 		? Math.max(0, Number(config.startDelay))
-		: resolveInheritedDelay(wrapper, configuredDelay);
+		: reverse
+			? 0
+			: resolveInheritedDelay(wrapper, configuredDelay);
 	const iterations = shouldLoop && !forceSingleIteration
 		? Infinity
 		: preset === 'bounce-soft'
@@ -797,6 +941,15 @@ function animateChildren(wrapper, reverse = false, config = {}) {
 			: 'forwards';
 
 	cancelWrapperAnimations(wrapper);
+	if (reverse) {
+		const existingTimer = Number(wrapper.dataset.abwRestoreTimer || 0);
+		if (existingTimer) {
+			window.clearTimeout(existingTimer);
+			wrapper.dataset.abwRestoreTimer = '';
+		}
+	} else {
+		wrapper.abwEntranceCompleted = false;
+	}
 	const animations = animateTargets(
 		targets,
 		keyframes,
@@ -808,6 +961,7 @@ function animateChildren(wrapper, reverse = false, config = {}) {
 			iterations,
 			fill: fillMode,
 			textGranularity,
+			exitMode,
 		},
 		reverse
 	);
@@ -817,15 +971,177 @@ function animateChildren(wrapper, reverse = false, config = {}) {
 		scheduleTextRestore(wrapper, duration, delay, effectiveStagger, targets.length, shouldLoop);
 	}
 
+	if (!reverse && iterations !== Infinity && animations.length) {
+		Promise.allSettled(
+			animations.map((animation) =>
+				animation.finished.catch(() => undefined)
+			)
+		).then(() => {
+			const completedCleanly = animations.every(
+				(animation) => animation.playState === 'finished'
+			);
+			if (completedCleanly) {
+				wrapper.abwEntranceCompleted = true;
+			}
+		});
+	}
+
 	if (typeof config.onComplete === 'function' && iterations !== Infinity && animations.length) {
 		Promise.allSettled(
 			animations.map((animation) =>
 				animation.finished.catch(() => undefined)
 			)
 		).then(() => {
+			// Canceled plays (e.g. hover re-enter mid-exit) reject finished; skip side effects.
+			const completedCleanly = animations.every(
+				(animation) => animation.playState === 'finished'
+			);
+			if (!completedCleanly) {
+				return;
+			}
+			// Exit finished, but the trigger condition may already be false again
+			// (pointer re-entered, scrolled back into view, etc.).
+			if (typeof config.shouldProceed === 'function' && !config.shouldProceed()) {
+				return;
+			}
 			config.onComplete();
 		});
 	}
+}
+
+function playExitAnimation(wrapper, config = {}) {
+	// Still in delay / never started: cancel and restore the primed invisible state.
+	if (!hasEntranceVisuallyStarted(wrapper)) {
+		cancelPendingEntrance(wrapper, config);
+		return false;
+	}
+
+	// Entrance is mid-flight: let it finish, then exit (full cycle, not interrupted).
+	if (!hasEntranceFullyCompleted(wrapper)) {
+		queueExitAfterEntrance(wrapper, config);
+		return 'queued';
+	}
+
+	clearQueuedExit(wrapper);
+	wrapper.abwEntranceCompleted = false;
+	animateChildren(wrapper, true, {
+		...config,
+		exitMode: config.exitMode || normalizeExitMode(wrapper.dataset.ffawExitMode || 'rewind'),
+	});
+	return true;
+}
+
+/**
+ * True once any target has left its delay phase (or finished). During delay with
+ * fill:both the element still shows the entrance "from" frame — exiting then would
+ * animate as if the entrance already ran.
+ */
+function hasEntranceVisuallyStarted(wrapper) {
+	if (wrapper.abwEntranceCompleted) {
+		return true;
+	}
+	const animations = Array.isArray(wrapper.abwAnimations) ? wrapper.abwAnimations : [];
+	if (!animations.length) {
+		return false;
+	}
+	return animations.some((animation) => {
+		if (animation.playState === 'finished') {
+			return true;
+		}
+		const currentTime = animation.currentTime;
+		if (currentTime === null) {
+			return false;
+		}
+		let delay = 0;
+		if (animation.effect && typeof animation.effect.getTiming === 'function') {
+			delay = Number(animation.effect.getTiming().delay) || 0;
+		}
+		return currentTime >= delay;
+	});
+}
+
+function hasEntranceFullyCompleted(wrapper) {
+	if (wrapper.abwEntranceCompleted) {
+		return true;
+	}
+	const animations = Array.isArray(wrapper.abwAnimations) ? wrapper.abwAnimations : [];
+	if (!animations.length) {
+		return false;
+	}
+	return animations.every((animation) => animation.playState === 'finished');
+}
+
+function clearQueuedExit(wrapper) {
+	wrapper.abwExitQueued = false;
+	wrapper.abwExitQueueToken = (wrapper.abwExitQueueToken || 0) + 1;
+}
+
+function queueExitAfterEntrance(wrapper, config = {}) {
+	const animations = Array.isArray(wrapper.abwAnimations) ? wrapper.abwAnimations : [];
+	if (!animations.length) {
+		cancelPendingEntrance(wrapper, config);
+		return;
+	}
+
+	const token = (wrapper.abwExitQueueToken || 0) + 1;
+	wrapper.abwExitQueueToken = token;
+	wrapper.abwExitQueued = true;
+
+	Promise.allSettled(
+		animations.map((animation) => animation.finished.catch(() => undefined))
+	).then(() => {
+		if (wrapper.abwExitQueueToken !== token || !wrapper.abwExitQueued) {
+			return;
+		}
+		wrapper.abwExitQueued = false;
+
+		if (typeof config.shouldProceed === 'function' && !config.shouldProceed()) {
+			return;
+		}
+
+		const completedCleanly = animations.every(
+			(animation) => animation.playState === 'finished'
+		);
+		if (!completedCleanly) {
+			cancelPendingEntrance(wrapper, config);
+			return;
+		}
+
+		wrapper.abwEntranceCompleted = true;
+		playExitAnimation(wrapper, config);
+	});
+}
+
+function enforceInitialInvisibleState(wrapper, config = {}) {
+	const animationState = resolveWrapperAnimationState(wrapper, config.directionOverride);
+	const targets = mergeFollowTargets(
+		wrapper,
+		getAnimationTargets(wrapper, animationState.preset, animationState.textGranularity)
+	);
+
+	if (!keyframesStartHidden(animationState.keyframes)) {
+		targets.forEach((target) => {
+			clearInlineState(target);
+		});
+		return;
+	}
+
+	targets.forEach((target) => {
+		applyInitialState(target, animationState.keyframes);
+	});
+}
+
+function cancelPendingEntrance(wrapper, config = {}) {
+	clearQueuedExit(wrapper);
+	cancelWrapperAnimations(wrapper);
+	wrapper.abwEntranceCompleted = false;
+
+	if (typeof config.onSkipped === 'function') {
+		config.onSkipped();
+		return;
+	}
+
+	enforceInitialInvisibleState(wrapper, config);
 }
 
 function isWrapperInViewport(wrapper, threshold) {
@@ -1363,7 +1679,7 @@ function setupScrollMediaControl(wrapper) {
 		: 'forward';
 	const directionLimit = wrapper.dataset.ffawMediaScrollDirectionLimit || 'both';
 	const playbackCycles = wrapper.dataset.ffawMediaScrollPlaybackCycles || 1;
-	const once = wrapper.dataset.ffawOnce === '1';
+	const once = resolveOnceOption(wrapper);
 	let rafId = 0;
 	let lastRawProgress = null;
 	let hasMoved = false;
@@ -1455,9 +1771,12 @@ function setupWrapper(wrapper) {
 		resolveWrapperAnimationState(wrapper, resolveDirectionOverride());
 	const initialAnimationState = resolveCurrentAnimationState();
 	const { preset, textGranularity, keyframes } = initialAnimationState;
-	const once = wrapper.dataset.ffawOnce === '1';
-	const clickToggle = wrapper.dataset.ffawClickToggle === '1';
-	const hideUntilHover = wrapper.dataset.ffawHideUntilHover === '1';
+	const once = resolveOnceOption(wrapper);
+	const animationMode = resolveAnimationMode(wrapper);
+	const playsIn = animationModeIncludesIn(animationMode);
+	const playsOut = animationModeIncludesOut(animationMode);
+	const clickToggle =
+		wrapper.dataset.ffawClickToggle === '1' || animationMode === 'both' || animationMode === 'out';
 	const threshold = Number(wrapper.dataset.ffawThreshold || 0.25);
 	const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 	let playCount = 0;
@@ -1467,25 +1786,40 @@ function setupWrapper(wrapper) {
 		return;
 	}
 
-	const shouldPrimeHover = trigger === 'hover' && hideUntilHover && keyframesStartHidden(keyframes);
-	if (shouldPrimeHover) {
+	const startsHidden = keyframesStartHidden(keyframes);
+	const hideUntilHoverEnabled = wrapper.dataset.ffawHideUntilHover === '1';
+	// Hover entrances that start hidden must be primed on load when Hide until hover
+	// is on — otherwise content stays visible until the first mouse interaction.
+	const shouldPrimeHoverInvisible =
+		trigger === 'hover' && playsIn && startsHidden && hideUntilHoverEnabled;
+	if (shouldPrimeHoverInvisible) {
 		wrapper.classList.add('abw-hide-until-hover');
 	} else {
 		wrapper.classList.remove('abw-hide-until-hover');
 	}
-	const shouldPrimeInitialState = shouldPrimeHover || ['scroll', 'load', 'click', 'loop'].includes(trigger);
+	const shouldPrimeInitialState =
+		(shouldPrimeHoverInvisible || (playsIn && ['scroll', 'load', 'click', 'loop'].includes(trigger))) &&
+		animationMode !== 'out';
 	if (shouldPrimeInitialState) {
-		const initialTargets = mergeFollowTargets(
+		enforceInitialInvisibleState(wrapper, {
+			directionOverride: resolveDirectionOverride(),
+		});
+	} else if (animationMode === 'out') {
+		// Out-only starts at rest (visible), then exits on leave/toggle.
+		const restTargets = mergeFollowTargets(
 			wrapper,
 			getAnimationTargets(wrapper, preset, textGranularity)
 		);
-		initialTargets.forEach((target) => {
-			applyInitialState(target, keyframes);
+		restTargets.forEach((target) => {
+			clearInlineState(target);
 		});
+		wrapper.abwEntranceCompleted = true;
 	}
 
 	const triggerWrapperAnimation = (config = {}) => {
+		clearQueuedExit(wrapper);
 		if (trigger === 'hover') {
+			wrapper.classList.add('abw-hover-armed');
 			wrapper.classList.remove('abw-hide-until-hover');
 		}
 		playCount += 1;
@@ -1536,27 +1870,116 @@ function setupWrapper(wrapper) {
 	}
 
 	if (trigger === 'hover') {
+		const restoreInvisibleIdle = () => {
+			if (wrapper.matches(':hover')) {
+				return;
+			}
+			wrapper.classList.remove('abw-hover-armed');
+			if (animationMode === 'out') {
+				const restTargets = mergeFollowTargets(
+					wrapper,
+					getAnimationTargets(wrapper, preset, textGranularity)
+				);
+				restTargets.forEach((target) => {
+					clearInlineState(target);
+				});
+				wrapper.abwEntranceCompleted = true;
+				return;
+			}
+			if (shouldPrimeHoverInvisible) {
+				wrapper.classList.add('abw-hide-until-hover');
+			}
+			enforceInitialInvisibleState(wrapper, {
+				directionOverride: resolveDirectionOverride(),
+			});
+		};
 		wrapper.addEventListener('mouseenter', () => {
+			clearQueuedExit(wrapper);
+			if (!playsIn) {
+				wrapper.classList.add('abw-hover-armed');
+				wrapper.classList.remove('abw-hide-until-hover');
+				const restTargets = mergeFollowTargets(
+					wrapper,
+					getAnimationTargets(wrapper, preset, textGranularity)
+				);
+				restTargets.forEach((target) => {
+					clearInlineState(target);
+				});
+				wrapper.abwEntranceCompleted = true;
+				return;
+			}
 			triggerWrapperAnimation();
+		});
+		wrapper.addEventListener('mouseleave', () => {
+			if (!playsOut) {
+				if (shouldPrimeHoverInvisible) {
+					cancelPendingEntrance(wrapper, {
+						directionOverride: resolveDirectionOverride(),
+						onSkipped: restoreInvisibleIdle,
+					});
+				}
+				return;
+			}
+			playExitAnimation(wrapper, {
+				directionOverride: resolveDirectionOverride(),
+				shouldProceed: () => !wrapper.matches(':hover'),
+				onSkipped: restoreInvisibleIdle,
+				onComplete: restoreInvisibleIdle,
+			});
 		});
 		return;
 	}
 
 	if (trigger === 'click') {
-		let isOn = false;
+		let isOn = animationMode === 'out';
+		const restoreAfterOut = () => {
+			if (animationMode === 'out') {
+				const restTargets = mergeFollowTargets(
+					wrapper,
+					getAnimationTargets(wrapper, preset, textGranularity)
+				);
+				restTargets.forEach((target) => {
+					clearInlineState(target);
+				});
+				wrapper.abwEntranceCompleted = true;
+				return;
+			}
+			enforceInitialInvisibleState(wrapper, {
+				directionOverride: resolveDirectionOverride(),
+			});
+		};
 		wrapper.addEventListener('click', () => {
-			if (!clickToggle) {
+			if (animationMode === 'out') {
+				wrapper.abwEntranceCompleted = true;
+				playExitAnimation(wrapper, {
+					directionOverride: resolveDirectionOverride(),
+					onSkipped: restoreAfterOut,
+					onComplete: restoreAfterOut,
+				});
+				return;
+			}
+			if (!clickToggle && animationMode === 'in') {
 				triggerWrapperAnimation();
 				return;
 			}
 			isOn = !isOn;
 			if (isOn) {
+				clearQueuedExit(wrapper);
 				triggerWrapperAnimation();
 				return;
 			}
-			animateChildren(wrapper, true, {
+			if (!playsOut) {
+				return;
+			}
+			const exitResult = playExitAnimation(wrapper, {
 				directionOverride: resolveDirectionOverride(),
+				shouldProceed: () => !isOn,
+				onSkipped: restoreAfterOut,
+				onComplete: restoreAfterOut,
 			});
+			if (exitResult === false) {
+				isOn = false;
+			}
 		});
 		return;
 	}
@@ -1600,8 +2023,20 @@ function setupWrapper(wrapper) {
 			if (isWrapperInViewport(wrapper, threshold)) {
 				isInView = true;
 				hasPlayed = true;
-				triggerWrapperAnimation();
-				if (once) {
+				clearQueuedExit(wrapper);
+				if (playsIn) {
+					triggerWrapperAnimation();
+				} else if (animationMode === 'out') {
+					const restTargets = mergeFollowTargets(
+						wrapper,
+						getAnimationTargets(wrapper, preset, textGranularity)
+					);
+					restTargets.forEach((target) => {
+						clearInlineState(target);
+					});
+					wrapper.abwEntranceCompleted = true;
+				}
+				if (once && !playsOut) {
 					observer.unobserve(wrapper);
 					detachManualCheck();
 				}
@@ -1622,28 +2057,60 @@ function setupWrapper(wrapper) {
 							return;
 						}
 						isInView = true;
-						triggerWrapperAnimation();
+						clearQueuedExit(wrapper);
+						if (playsIn) {
+							triggerWrapperAnimation();
+						} else if (animationMode === 'out') {
+							const restTargets = mergeFollowTargets(
+								wrapper,
+								getAnimationTargets(wrapper, preset, textGranularity)
+							);
+							restTargets.forEach((target) => {
+								clearInlineState(target);
+							});
+							wrapper.abwEntranceCompleted = true;
+						}
 						hasPlayed = true;
-						if (once) {
+						if (once && !playsOut) {
 							observer.unobserve(wrapper);
 							detachManualCheck();
 						}
 					} else if (isInView) {
 						isInView = false;
-						if (once || !hasPlayed) {
+						if (!playsOut) {
 							return;
 						}
-						const resetAnimationState = resolveCurrentAnimationState();
-						const resetTargets = mergeFollowTargets(
-							wrapper,
-							getAnimationTargets(
-								wrapper,
-								resetAnimationState.preset,
-								resetAnimationState.textGranularity
-							)
-						);
-						resetTargets.forEach((target) => {
-							applyInitialState(target, resetAnimationState.keyframes);
+						if ((once && animationMode === 'in') || !hasPlayed) {
+							return;
+						}
+						playExitAnimation(wrapper, {
+							directionOverride: resolveDirectionOverride(),
+							shouldProceed: () => !isInView,
+							onSkipped: () => {
+								if (animationMode === 'out') {
+									const restTargets = mergeFollowTargets(
+										wrapper,
+										getAnimationTargets(wrapper, preset, textGranularity)
+									);
+									restTargets.forEach((target) => {
+										clearInlineState(target);
+									});
+									wrapper.abwEntranceCompleted = true;
+									return;
+								}
+								enforceInitialInvisibleState(wrapper, {
+									directionOverride: resolveDirectionOverride(),
+								});
+							},
+							onComplete: () => {
+								if (animationMode === 'out') {
+									// Stay at exited end-state until next enter resets to rest.
+									return;
+								}
+								enforceInitialInvisibleState(wrapper, {
+									directionOverride: resolveDirectionOverride(),
+								});
+							},
 						});
 					}
 				});
@@ -1669,8 +2136,41 @@ function initAnimationWrappers() {
 	wrappers.forEach(setupWrapper);
 }
 
-if (document.readyState === 'loading') {
-	document.addEventListener('DOMContentLoaded', initAnimationWrappers);
-} else {
-	initAnimationWrappers();
+function bootAnimationWrappers() {
+	if (document.readyState === 'loading') {
+		document.addEventListener('DOMContentLoaded', initAnimationWrappers);
+	} else {
+		initAnimationWrappers();
+	}
+}
+
+if (typeof globalThis !== 'undefined' && globalThis.__ABW_TEST__) {
+	globalThis.__ABW = {
+		getAnimationTargets,
+		mergeFollowTargets,
+		getParentFollowWrapperTargets,
+		getDirectChildTargets,
+		resolveAnimationMode,
+		resolveOnceOption,
+		animationModeIncludesIn,
+		animationModeIncludesOut,
+		deriveExitKeyframes,
+		normalizeExitMode,
+		hasEntranceVisuallyStarted,
+		hasEntranceFullyCompleted,
+		keyframesStartHidden,
+		resolvePresetKeyframes,
+		normalizePresetSettings,
+		applyIntensityToKeyframes,
+		resolveInheritedDelay,
+		setupWrapper,
+		initAnimationWrappers,
+		playExitAnimation,
+		enforceInitialInvisibleState,
+		cancelPendingEntrance,
+		clearQueuedExit,
+		animateChildren,
+	};
+} else if (typeof document !== 'undefined') {
+	bootAnimationWrappers();
 }
