@@ -1,9 +1,9 @@
 (function (wp) {
 	const { registerBlockType } = wp.blocks;
 	const { InspectorControls, InnerBlocks, useBlockProps, useInnerBlocksProps } = wp.blockEditor;
-	const { PanelBody, SelectControl, RangeControl, ToggleControl, Tooltip } = wp.components;
+	const { PanelBody, SelectControl, RangeControl, ToggleControl, Tooltip, Button } = wp.components;
 	const { __ } = wp.i18n;
-	const { useSelect } = wp.data;
+	const { useDispatch, useSelect } = wp.data;
 	const { useEffect, useMemo, useState, Fragment, createElement } = wp.element;
 
 	const metadata = {
@@ -362,6 +362,11 @@
 			spacing: { margin: true, padding: true },
 			layout: true,
 		},
+		transforms: {
+			ungroup: function (_attributes, innerBlocks) {
+				return innerBlocks;
+			},
+		},
 		edit: function (props) {
 			const { attributes, setAttributes, clientId } = props;
 			const {
@@ -371,11 +376,20 @@
 				mediaScrollViewportStart, mediaScrollViewportEnd, mediaScrollStartAtPageTop, mediaScrollDocumentStart, mediaScrollDocumentEnd,
 			} = attributes;
 			const [libraryCategory, setLibraryCategory] = useState('recommended');
+			const { replaceBlocks, removeBlock } = useDispatch('core/block-editor');
 
 			const innerBlocks = useSelect(function (select) {
 				const block = select('core/block-editor').getBlock(clientId);
 				return (block && block.innerBlocks) || [];
 			}, [clientId]);
+
+			const removeAnimationKeepContent = function () {
+				if (innerBlocks.length) {
+					replaceBlocks(clientId, innerBlocks);
+					return;
+				}
+				removeBlock(clientId);
+			};
 			const hasAnimationWrapperParent = useSelect(function (select) {
 				const editorStore = select('core/block-editor');
 				const parentIds = editorStore.getBlockParents(clientId);
@@ -683,7 +697,7 @@
 					),
 					createElement(
 						PanelBody,
-						{ title: __('Animation Settings', 'anilibrary'), initialOpen: false },
+						{ title: __('Animation Settings', 'anilibrary'), initialOpen: true },
 						!isMediaScroll
 							? createElement(SelectControl, {
 									label: __('Trigger', 'anilibrary'),
@@ -997,7 +1011,29 @@
 									max: 1000,
 									step: 25,
 							  })
-							: null
+							: null,
+						createElement(
+							'div',
+							{ className: 'abw-unwrap-control' },
+							createElement(
+								Button,
+								{
+									variant: 'secondary',
+									isDestructive: true,
+									onClick: removeAnimationKeepContent,
+								},
+								innerBlocks.length
+									? __('Remove animation & keep content', 'anilibrary')
+									: __('Remove empty wrapper', 'anilibrary')
+							),
+							createElement(
+								'p',
+								{ className: 'abw-unwrap-help' },
+								innerBlocks.length
+									? __('Deletes this AniLibrary wrapper but leaves the blocks inside in place.', 'anilibrary')
+									: __('Removes this empty AniLibrary wrapper.', 'anilibrary')
+							)
+						)
 					)
 				),
 				createElement(

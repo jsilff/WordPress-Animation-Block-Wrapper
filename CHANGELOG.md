@@ -18,6 +18,8 @@ All notable changes to this project will be documented in this file.
 - Hide-until-hover no longer forces nested wrappers hidden unless they join the parent animation (keeps independent Scrub visible).
 - Added automated jsdom scenario tests for nesting targets, hover visibility, delay inheritance, animation modes, and exit gating (`npm test`).
 - Expanded nested scenario coverage: target matrix, inherit-delay stacks, hide-until-hover arming, parent-replay cascading, and config smoke combos.
+- Animation Settings panel now opens by default in the editor sidebar.
+- Added **Remove animation & keep content** to unwrap inner blocks without manually moving them out first (also registers Ungroup).
 
 ## 1.1.0 - 2026-06-03
 

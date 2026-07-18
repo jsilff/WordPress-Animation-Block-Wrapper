@@ -6,6 +6,7 @@ import {
 	useInnerBlocksProps,
 } from '@wordpress/block-editor';
 import {
+	Button,
 	PanelBody,
 	SelectControl,
 	RangeControl,
@@ -13,7 +14,7 @@ import {
 	Tooltip,
 } from '@wordpress/components';
 import { __ } from '@wordpress/i18n';
-import { useSelect } from '@wordpress/data';
+import { useDispatch, useSelect } from '@wordpress/data';
 import { useEffect, useMemo, useState } from '@wordpress/element';
 
 import metadata from '../block.json';
@@ -328,6 +329,10 @@ function detectScrollControlledMedia(innerBlocks) {
 registerBlockType(metadata.name, {
 	...metadata,
 	icon: ANILIBRARY_ICON,
+	transforms: {
+		// Enables the editor Ungroup action: replace this wrapper with its children.
+		ungroup: (_attributes, innerBlocks) => innerBlocks,
+	},
 	edit: ({ attributes, setAttributes, clientId }) => {
 		const {
 			preset,
@@ -364,6 +369,7 @@ registerBlockType(metadata.name, {
 		} = attributes;
 
 		const [libraryCategory, setLibraryCategory] = useState('recommended');
+		const { replaceBlocks, removeBlock } = useDispatch('core/block-editor');
 
 		const innerBlocks = useSelect(
 			(select) => {
@@ -372,6 +378,14 @@ registerBlockType(metadata.name, {
 			},
 			[clientId]
 		);
+
+		const removeAnimationKeepContent = () => {
+			if (innerBlocks.length) {
+				replaceBlocks(clientId, innerBlocks);
+				return;
+			}
+			removeBlock(clientId);
+		};
 		const hasAnimationWrapperParent = useSelect(
 			(select) => {
 				const editorStore = select('core/block-editor');
@@ -713,7 +727,7 @@ registerBlockType(metadata.name, {
 						</div>
 					</PanelBody>
 
-					<PanelBody title={__('Animation Settings', 'anilibrary')} initialOpen={false}>
+					<PanelBody title={__('Animation Settings', 'anilibrary')} initialOpen={true}>
 						{!isMediaScroll && (
 							<SelectControl
 								label={__('Trigger', 'anilibrary')}
@@ -1036,6 +1050,22 @@ registerBlockType(metadata.name, {
 								step={25}
 							/>
 						)}
+						<div className="abw-unwrap-control">
+							<Button
+								variant="secondary"
+								isDestructive
+								onClick={removeAnimationKeepContent}
+							>
+								{innerBlocks.length
+									? __('Remove animation & keep content', 'anilibrary')
+									: __('Remove empty wrapper', 'anilibrary')}
+							</Button>
+							<p className="abw-unwrap-help">
+								{innerBlocks.length
+									? __('Deletes this AniLibrary wrapper but leaves the blocks inside in place.', 'anilibrary')
+									: __('Removes this empty AniLibrary wrapper.', 'anilibrary')}
+							</p>
+						</div>
 					</PanelBody>
 				</InspectorControls>
 				<div {...innerBlocksWrapperProps}>
