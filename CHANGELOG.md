@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file.
 - Default missing `data-ffaw-once` to play-once (true), matching the React port — avoids viewport-edge hide/animate flicker.
 - Skip exit when entrance is still delayed; queue exit until entrance fully finishes (no interrupted cycles).
 - Always re-prime the initial invisible state after skip/exit when the entrance starts hidden.
+- Prime hover (starts-hidden) invisible state on load — not only after the first mouse interaction.
 
 ## 1.1.0 - 2026-06-03
 
