@@ -1727,7 +1727,6 @@ function setupWrapper(wrapper) {
 	const { preset, textGranularity, keyframes } = initialAnimationState;
 	const once = resolveOnceOption(wrapper);
 	const clickToggle = wrapper.dataset.ffawClickToggle === '1';
-	const hideUntilHover = wrapper.dataset.ffawHideUntilHover === '1';
 	const threshold = Number(wrapper.dataset.ffawThreshold || 0.25);
 	const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 	let playCount = 0;
@@ -1737,25 +1736,28 @@ function setupWrapper(wrapper) {
 		return;
 	}
 
-	const shouldPrimeHover = trigger === 'hover' && hideUntilHover && keyframesStartHidden(keyframes);
-	if (shouldPrimeHover) {
+	const startsHidden = keyframesStartHidden(keyframes);
+	// Hover entrances that start hidden must be primed on load with the same idle
+	// invisible treatment used after leave — otherwise content stays visible until
+	// the first mouse interaction.
+	const shouldPrimeHoverInvisible = trigger === 'hover' && startsHidden;
+	if (shouldPrimeHoverInvisible) {
 		wrapper.classList.add('abw-hide-until-hover');
 	} else {
 		wrapper.classList.remove('abw-hide-until-hover');
 	}
-	const shouldPrimeInitialState = shouldPrimeHover || ['scroll', 'load', 'click', 'loop'].includes(trigger);
+	const shouldPrimeInitialState =
+		shouldPrimeHoverInvisible || ['scroll', 'load', 'click', 'loop'].includes(trigger);
 	if (shouldPrimeInitialState) {
-		const initialTargets = mergeFollowTargets(
-			wrapper,
-			getAnimationTargets(wrapper, preset, textGranularity)
-		);
-		initialTargets.forEach((target) => {
-			applyInitialState(target, keyframes);
+		enforceInitialInvisibleState(wrapper, {
+			directionOverride: resolveDirectionOverride(),
 		});
 	}
 
 	const triggerWrapperAnimation = (config = {}) => {
+		clearQueuedExit(wrapper);
 		if (trigger === 'hover') {
+			wrapper.classList.add('abw-hover-armed');
 			wrapper.classList.remove('abw-hide-until-hover');
 		}
 		playCount += 1;
@@ -1810,7 +1812,8 @@ function setupWrapper(wrapper) {
 			if (wrapper.matches(':hover')) {
 				return;
 			}
-			if (shouldPrimeHover) {
+			wrapper.classList.remove('abw-hover-armed');
+			if (shouldPrimeHoverInvisible) {
 				wrapper.classList.add('abw-hide-until-hover');
 			}
 			enforceInitialInvisibleState(wrapper, {
