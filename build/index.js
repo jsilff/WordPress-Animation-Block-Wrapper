@@ -28,7 +28,7 @@
 			threshold: { type: 'number', default: 0.25 },
 			loop: { type: 'boolean', default: false },
 			clickToggle: { type: 'boolean', default: false },
-			exitMode: { type: 'string', default: 'rewind' },
+			animationMode: { type: 'string', default: 'in' },
 			hideUntilHover: { type: 'boolean', default: false },
 			inheritParentDelay: { type: 'boolean', default: false },
 			followParentAnimation: { type: 'boolean', default: false },
@@ -160,20 +160,21 @@
 		return ['pulse-soft', 'float-soft', 'bounce-soft'].indexOf(presetId) !== -1;
 	}
 
-	function supportsExitAnimation(presetId, trigger, once, clickToggle) {
-		if (isMediaScrollPreset(presetId) || isLoopPreset(presetId) || trigger === 'loop' || trigger === 'load') {
+	function supportsAnimationMode(presetId, trigger) {
+		if (isMediaScrollPreset(presetId) || isLoopPreset(presetId)) {
 			return false;
 		}
-		if (trigger === 'hover') {
-			return true;
+		if (trigger === 'loop' || trigger === 'load' || trigger === 'scroll-media') {
+			return false;
 		}
-		if (trigger === 'click') {
-			return !!clickToggle;
+		return ['scroll', 'hover', 'click'].indexOf(trigger) !== -1;
+	}
+
+	function normalizeAnimationMode(value) {
+		if (value === 'out' || value === 'both') {
+			return value;
 		}
-		if (trigger === 'scroll') {
-			return !once;
-		}
-		return false;
+		return 'in';
 	}
 
 	function formatDelaySeconds(ms) {
@@ -350,7 +351,7 @@
 			const { attributes, setAttributes, clientId } = props;
 			const {
 				preset, contentKind, trigger, intensity, direction, zoomMode, bounceCount,
-				duration, delay, stagger, easing, once, threshold, loop, clickToggle, exitMode, hideUntilHover, textGranularity, inheritParentDelay, followParentAnimation,
+				duration, delay, stagger, easing, once, threshold, loop, clickToggle, animationMode, hideUntilHover, textGranularity, inheritParentDelay, followParentAnimation,
 				mediaScrollPlaybackDirection, mediaScrollDirectionLimit, mediaScrollPlaybackCycles, mediaScrollProgressSource, mediaScrollViewportEdge,
 				mediaScrollViewportStart, mediaScrollViewportEnd, mediaScrollStartAtPageTop, mediaScrollDocumentStart, mediaScrollDocumentEnd,
 			} = attributes;
@@ -485,6 +486,21 @@
 
 				if (trigger !== 'hover' && hideUntilHover) {
 					updates.hideUntilHover = false;
+					shouldUpdate = true;
+				}
+
+				if (!supportsAnimationMode(preset, trigger) && normalizeAnimationMode(animationMode) !== 'in') {
+					updates.animationMode = 'in';
+					shouldUpdate = true;
+				}
+
+				if (normalizeAnimationMode(animationMode) === 'both' && trigger === 'scroll' && once) {
+					updates.once = false;
+					shouldUpdate = true;
+				}
+
+				if (normalizeAnimationMode(animationMode) === 'both' && trigger === 'click' && !clickToggle) {
+					updates.clickToggle = true;
 					shouldUpdate = true;
 				}
 
@@ -661,6 +677,32 @@
 										{ label: __('Loop continuously', 'anilibrary'), value: 'loop' },
 									],
 									onChange: function (value) { setAttributes({ trigger: value, loop: value === 'loop' }); },
+							  })
+							: null,
+						supportsAnimationMode(preset, trigger)
+							? createElement(SelectControl, {
+									label: __('Animate', 'anilibrary'),
+									value: normalizeAnimationMode(animationMode),
+									options: [
+										{ label: __('Animate In', 'anilibrary'), value: 'in' },
+										{ label: __('Animate Out', 'anilibrary'), value: 'out' },
+										{ label: __('Animate In & Out', 'anilibrary'), value: 'both' },
+									],
+									onChange: function (value) {
+										var mode = normalizeAnimationMode(value);
+										var updates = { animationMode: mode };
+										if (mode === 'both' && trigger === 'scroll') {
+											updates.once = false;
+										}
+										if (mode === 'both' && trigger === 'click') {
+											updates.clickToggle = true;
+										}
+										if (mode === 'in' && trigger === 'click') {
+											updates.clickToggle = false;
+										}
+										setAttributes(updates);
+									},
+									help: __('In plays on enter, Out plays on leave, In & Out plays both. Exit uses the same preset.', 'anilibrary'),
 							  })
 							: null,
 						trigger === 'scroll'
@@ -875,14 +917,14 @@
 									step: 1,
 							  })
 							: null,
-							trigger === 'click'
+							trigger === 'click' && normalizeAnimationMode(animationMode) !== 'both' && normalizeAnimationMode(animationMode) !== 'out'
 								? createElement(ToggleControl, {
 										label: __('Click again to reverse', 'anilibrary'),
 									checked: clickToggle,
 									onChange: function (value) { setAttributes({ clickToggle: value }); },
 							  })
 							: null,
-						trigger === 'hover' && HOVER_HIDE_SUPPORTED_PRESETS.has(preset)
+						trigger === 'hover' && HOVER_HIDE_SUPPORTED_PRESETS.has(preset) && normalizeAnimationMode(animationMode) !== 'out'
 							? createElement(ToggleControl, {
 									label: __('Hide until hover', 'anilibrary'),
 									checked: hideUntilHover,
@@ -890,24 +932,12 @@
 									help: __('Keeps this hidden until you hover.', 'anilibrary'),
 							  })
 							: null,
-						trigger !== 'loop'
+						trigger !== 'loop' && normalizeAnimationMode(animationMode) !== 'both'
 							? createElement(ToggleControl, {
 									label: isMediaScroll ? __('Stop after first full scrub', 'anilibrary') : __('Play once', 'anilibrary'),
 									checked: once,
 									onChange: function (value) { setAttributes({ once: value }); },
 									help: isMediaScroll ? __('Keeps the video or GIF at the end after the first full scroll through.', 'anilibrary') : undefined,
-							  })
-							: null,
-						supportsExitAnimation(preset, trigger, once, clickToggle)
-							? createElement(SelectControl, {
-									label: __('Exit style', 'anilibrary'),
-									value: exitMode || 'rewind',
-									options: [
-										{ label: __('Rewind (back the way it came)', 'anilibrary'), value: 'rewind' },
-										{ label: __('Continue (keep traveling)', 'anilibrary'), value: 'continue' },
-									],
-									onChange: function (value) { setAttributes({ exitMode: value }); },
-									help: __('Exit is derived from the entrance preset — no separate exit animation needed.', 'anilibrary'),
 							  })
 							: null,
 						detectedKind === 'text'
@@ -957,12 +987,12 @@
 		save: function (props) {
 			const {
 				preset, contentKind, trigger, intensity, direction, zoomMode, bounceCount,
-				duration, delay, stagger, easing, once, threshold, loop, clickToggle, exitMode, hideUntilHover, textGranularity, inheritParentDelay, followParentAnimation,
+				duration, delay, stagger, easing, once, threshold, loop, clickToggle, animationMode, hideUntilHover, textGranularity, inheritParentDelay, followParentAnimation,
 				mediaScrollPlaybackDirection, mediaScrollDirectionLimit, mediaScrollPlaybackCycles, mediaScrollProgressSource, mediaScrollViewportEdge,
 				mediaScrollViewportStart, mediaScrollViewportEnd, mediaScrollStartAtPageTop, mediaScrollDocumentStart, mediaScrollDocumentEnd,
 			} = props.attributes;
 			const effectiveTrigger = isMediaScrollPreset(preset) ? 'scroll-media' : trigger;
-			const normalizedExitMode = exitMode === 'continue' ? 'continue' : 'rewind';
+			const normalizedAnimationMode = normalizeAnimationMode(animationMode);
 			const saveProps = {
 				className: 'abw-wrapper',
 				'data-ffaw-preset': preset,
@@ -995,9 +1025,9 @@
 				'data-ffaw-media-scroll-document-start': String(mediaScrollDocumentStart),
 				'data-ffaw-media-scroll-document-end': String(mediaScrollDocumentEnd),
 			};
-			// Omit default so existing saved markup stays valid (runtime already defaults to rewind).
-			if (normalizedExitMode !== 'rewind') {
-				saveProps['data-ffaw-exit-mode'] = normalizedExitMode;
+			// Omit default so existing saved markup stays valid.
+			if (normalizedAnimationMode !== 'in') {
+				saveProps['data-ffaw-animation-mode'] = normalizedAnimationMode;
 			}
 
 			const blockProps = useBlockProps.save(saveProps);

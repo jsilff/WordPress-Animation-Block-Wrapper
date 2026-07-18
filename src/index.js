@@ -119,20 +119,21 @@ function isLoopPreset(presetId) {
 	return ['pulse-soft', 'float-soft', 'bounce-soft'].includes(presetId);
 }
 
-function supportsExitAnimation(presetId, trigger, once, clickToggle) {
-	if (isMediaScrollPreset(presetId) || isLoopPreset(presetId) || trigger === 'loop' || trigger === 'load') {
+function supportsAnimationMode(presetId, trigger) {
+	if (isMediaScrollPreset(presetId) || isLoopPreset(presetId)) {
 		return false;
 	}
-	if (trigger === 'hover') {
-		return true;
+	if (trigger === 'loop' || trigger === 'load' || trigger === 'scroll-media') {
+		return false;
 	}
-	if (trigger === 'click') {
-		return !!clickToggle;
+	return ['scroll', 'hover', 'click'].includes(trigger);
+}
+
+function normalizeAnimationMode(value) {
+	if (value === 'out' || value === 'both') {
+		return value;
 	}
-	if (trigger === 'scroll') {
-		return !once;
-	}
-	return false;
+	return 'in';
 }
 
 function formatDelaySeconds(ms) {
@@ -330,7 +331,7 @@ registerBlockType(metadata.name, {
 			threshold,
 			loop,
 			clickToggle,
-			exitMode,
+			animationMode,
 			hideUntilHover,
 			textGranularity,
 			inheritParentDelay,
@@ -532,6 +533,21 @@ registerBlockType(metadata.name, {
 				shouldUpdate = true;
 			}
 
+			if (!supportsAnimationMode(preset, trigger) && normalizeAnimationMode(animationMode) !== 'in') {
+				updates.animationMode = 'in';
+				shouldUpdate = true;
+			}
+
+			if (normalizeAnimationMode(animationMode) === 'both' && trigger === 'scroll' && once) {
+				updates.once = false;
+				shouldUpdate = true;
+			}
+
+			if (normalizeAnimationMode(animationMode) === 'both' && trigger === 'click' && !clickToggle) {
+				updates.clickToggle = true;
+				shouldUpdate = true;
+			}
+
 			if (trigger !== 'loop' && loop) {
 				updates.loop = false;
 				shouldUpdate = true;
@@ -622,7 +638,7 @@ registerBlockType(metadata.name, {
 			if (shouldUpdate) {
 				setAttributes(updates);
 			}
-		}, [bounceCount, contentKind, detectedKind, direction, filteredPresets, followParentAnimation, hasAnimationWrapperParent, hasScrollControlledMedia, hideUntilHover, inheritParentDelay, isMediaScroll, loop, mediaScrollDirectionLimit, mediaScrollPlaybackDirection, mediaScrollProgressSource, mediaScrollStartAtPageTop, mediaScrollViewportEdge, mediaScrollViewportEnd, mediaScrollViewportStart, once, preset, primaryRecommendation, setAttributes, stagger, textGranularity, trigger, zoomMode]);
+		}, [animationMode, bounceCount, clickToggle, contentKind, detectedKind, direction, filteredPresets, followParentAnimation, hasAnimationWrapperParent, hasScrollControlledMedia, hideUntilHover, inheritParentDelay, isMediaScroll, loop, mediaScrollDirectionLimit, mediaScrollPlaybackDirection, mediaScrollProgressSource, mediaScrollStartAtPageTop, mediaScrollViewportEdge, mediaScrollViewportEnd, mediaScrollViewportStart, once, preset, primaryRecommendation, setAttributes, stagger, textGranularity, trigger, zoomMode]);
 
 		const isDelayed = Number(effectiveDelayMs) > 0;
 		const delayBadgeLabel = isDelayed
@@ -691,6 +707,35 @@ registerBlockType(metadata.name, {
 									{ label: __('Loop continuously', 'anilibrary'), value: 'loop' },
 								]}
 								onChange={(value) => setAttributes({ trigger: value, loop: value === 'loop' })}
+							/>
+						)}
+						{supportsAnimationMode(preset, trigger) && (
+							<SelectControl
+								label={__('Animate', 'anilibrary')}
+								value={normalizeAnimationMode(animationMode)}
+								options={[
+									{ label: __('Animate In', 'anilibrary'), value: 'in' },
+									{ label: __('Animate Out', 'anilibrary'), value: 'out' },
+									{ label: __('Animate In & Out', 'anilibrary'), value: 'both' },
+								]}
+								onChange={(value) => {
+									const mode = normalizeAnimationMode(value);
+									const updates = { animationMode: mode };
+									if (mode === 'both' && trigger === 'scroll') {
+										updates.once = false;
+									}
+									if (mode === 'both' && trigger === 'click') {
+										updates.clickToggle = true;
+									}
+									if (mode === 'in' && trigger === 'click') {
+										updates.clickToggle = false;
+									}
+									setAttributes(updates);
+								}}
+								help={__(
+									'In plays on enter, Out plays on leave, In & Out plays both. Exit uses the same preset.',
+									'anilibrary'
+								)}
 							/>
 						)}
 						{trigger === 'scroll' && (
@@ -901,14 +946,14 @@ registerBlockType(metadata.name, {
 								step={1}
 							/>
 						)}
-						{trigger === 'click' && (
+						{trigger === 'click' && normalizeAnimationMode(animationMode) !== 'both' && normalizeAnimationMode(animationMode) !== 'out' && (
 							<ToggleControl
 								label={__('Click again to reverse', 'anilibrary')}
 								checked={clickToggle}
 								onChange={(value) => setAttributes({ clickToggle: value })}
 							/>
 						)}
-						{trigger === 'hover' && HOVER_HIDE_SUPPORTED_PRESETS.has(preset) && (
+						{trigger === 'hover' && HOVER_HIDE_SUPPORTED_PRESETS.has(preset) && normalizeAnimationMode(animationMode) !== 'out' && (
 							<ToggleControl
 								label={__('Hide until hover', 'anilibrary')}
 								checked={hideUntilHover}
@@ -916,33 +961,12 @@ registerBlockType(metadata.name, {
 								help={__('Keeps this hidden until you hover.', 'anilibrary')}
 							/>
 						)}
-						{trigger !== 'loop' && (
+						{trigger !== 'loop' && normalizeAnimationMode(animationMode) !== 'both' && (
 							<ToggleControl
 								label={isMediaScroll ? __('Stop after first full scrub', 'anilibrary') : __('Play once', 'anilibrary')}
 								checked={once}
 								onChange={(value) => setAttributes({ once: value })}
 								help={isMediaScroll ? __('Keeps the video or GIF at the end after the first full scroll through.', 'anilibrary') : undefined}
-							/>
-						)}
-						{supportsExitAnimation(preset, trigger, once, clickToggle) && (
-							<SelectControl
-								label={__('Exit style', 'anilibrary')}
-								value={exitMode || 'rewind'}
-								options={[
-									{
-										label: __('Rewind (back the way it came)', 'anilibrary'),
-										value: 'rewind',
-									},
-									{
-										label: __('Continue (keep traveling)', 'anilibrary'),
-										value: 'continue',
-									},
-								]}
-								onChange={(value) => setAttributes({ exitMode: value })}
-								help={__(
-									'Exit is derived from the entrance preset — no separate exit animation needed.',
-									'anilibrary'
-								)}
 							/>
 						)}
 						{detectedKind === 'text' && (
@@ -1001,7 +1025,7 @@ registerBlockType(metadata.name, {
 			threshold,
 			loop,
 			clickToggle,
-			exitMode,
+			animationMode,
 			hideUntilHover,
 			textGranularity,
 			inheritParentDelay,
@@ -1018,7 +1042,7 @@ registerBlockType(metadata.name, {
 			mediaScrollDocumentEnd,
 		} = attributes;
 		const effectiveTrigger = isMediaScrollPreset(preset) ? 'scroll-media' : trigger;
-		const normalizedExitMode = exitMode === 'continue' ? 'continue' : 'rewind';
+		const normalizedAnimationMode = normalizeAnimationMode(animationMode);
 
 		const blockProps = useBlockProps.save({
 			className: 'abw-wrapper',
@@ -1037,9 +1061,9 @@ registerBlockType(metadata.name, {
 			'data-ffaw-threshold': String(threshold),
 			'data-ffaw-loop': !isMediaScrollPreset(preset) && loop ? '1' : '0',
 			'data-ffaw-click-toggle': clickToggle ? '1' : '0',
-			// Omit default so existing saved markup stays valid (runtime already defaults to rewind).
-			...(normalizedExitMode !== 'rewind'
-				? { 'data-ffaw-exit-mode': normalizedExitMode }
+			// Omit default so existing saved markup stays valid.
+			...(normalizedAnimationMode !== 'in'
+				? { 'data-ffaw-animation-mode': normalizedAnimationMode }
 				: {}),
 			'data-ffaw-hide-until-hover': hideUntilHover ? '1' : '0',
 			'data-ffaw-text-granularity': textGranularity,
