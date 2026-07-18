@@ -12,9 +12,13 @@ All notable changes to this project will be documented in this file.
 - Default missing `data-ffaw-once` to play-once (true) — avoids viewport-edge hide/animate flicker.
 - Skip exit when entrance is still delayed; queue exit until entrance fully finishes (no interrupted cycles).
 - Always re-prime the initial invisible state after skip/exit when the entrance starts hidden.
+- Prime hover (starts-hidden) invisible state on load when **Hide until hover** is enabled — not only after the first mouse interaction.
 - Nested wrappers: clearer **Match parent timing** vs **Join parent animation** controls.
 - Fix nested-only parents (e.g. Rise wrapping Hover) getting zero targets so the outer effect never fired.
 - Hide-until-hover no longer forces nested wrappers hidden unless they join the parent animation (keeps independent Scrub visible).
+- Serialize `animation-mode="in"` when scroll replay / click toggle would otherwise be inferred as legacy `both`.
+- Keep observing out-only scroll wrappers after above-the-fold manual entry so exit can still fire.
+- Ignore canceled / superseded exit completions before re-hiding hover content.
 - Added automated jsdom scenario tests for nesting targets, hover visibility, delay inheritance, animation modes, and exit gating (`npm test`).
 - Expanded nested scenario coverage: target matrix, inherit-delay stacks, hide-until-hover arming, parent-replay cascading, and config smoke combos.
 - Animation Settings panel now opens by default in the editor sidebar.

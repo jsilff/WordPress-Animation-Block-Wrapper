@@ -293,7 +293,21 @@ describe('hide-until-hover nested visibility matrix', () => {
 		assert.notEqual(scrub.style.opacity, '0');
 	});
 
-	it('nested hover in-only still primes hide-until-hover for starts-hidden presets', () => {
+	it('nested hover in-only does not prime hide when Hide until hover is off', () => {
+		const { document, abw } = createRuntime();
+		const hover = makeWrapper(document, {
+			preset: 'fade',
+			trigger: 'hover',
+			animationMode: 'in',
+			hideUntilHover: false,
+			html: '<p>Only in</p>',
+		});
+		document.body.appendChild(hover);
+		abw.setupWrapper(hover);
+		assert.ok(!hover.classList.contains('abw-hide-until-hover'));
+	});
+
+	it('nested hover in-only still primes hide-until-hover when enabled', () => {
 		const { document, abw } = createRuntime();
 		const hover = makeWrapper(document, {
 			preset: 'fade',

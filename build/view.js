@@ -999,6 +999,11 @@ function animateChildren(wrapper, reverse = false, config = {}) {
 			if (!completedCleanly) {
 				return;
 			}
+			// Exit finished, but the trigger condition may already be false again
+			// (pointer re-entered, scrolled back into view, etc.).
+			if (typeof config.shouldProceed === 'function' && !config.shouldProceed()) {
+				return;
+			}
 			config.onComplete();
 		});
 	}
@@ -1782,10 +1787,11 @@ function setupWrapper(wrapper) {
 	}
 
 	const startsHidden = keyframesStartHidden(keyframes);
-	// Hover entrances that start hidden must be primed on load with the same idle
-	// invisible treatment used after leave — otherwise content stays visible until
-	// the first mouse interaction.
-	const shouldPrimeHoverInvisible = trigger === 'hover' && playsIn && startsHidden;
+	const hideUntilHoverEnabled = wrapper.dataset.ffawHideUntilHover === '1';
+	// Hover entrances that start hidden must be primed on load when Hide until hover
+	// is on — otherwise content stays visible until the first mouse interaction.
+	const shouldPrimeHoverInvisible =
+		trigger === 'hover' && playsIn && startsHidden && hideUntilHoverEnabled;
 	if (shouldPrimeHoverInvisible) {
 		wrapper.classList.add('abw-hide-until-hover');
 	} else {
@@ -2030,7 +2036,7 @@ function setupWrapper(wrapper) {
 					});
 					wrapper.abwEntranceCompleted = true;
 				}
-				if (once) {
+				if (once && !playsOut) {
 					observer.unobserve(wrapper);
 					detachManualCheck();
 				}

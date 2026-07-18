@@ -1115,6 +1115,12 @@ registerBlockType(metadata.name, {
 		const effectiveTrigger = isMediaScrollPreset(preset) ? 'scroll-media' : trigger;
 		const normalizedAnimationMode = normalizeAnimationMode(animationMode);
 		const normalizedExitMode = normalizeExitMode(exitMode);
+		// Omit default `in` so older saved markup stays valid — except when missing
+		// mode would be inferred as legacy `both` (scroll replay / click toggle).
+		const shouldSerializeAnimationMode =
+			normalizedAnimationMode !== 'in' ||
+			(!once && effectiveTrigger === 'scroll') ||
+			(clickToggle && effectiveTrigger === 'click');
 
 		const blockProps = useBlockProps.save({
 			className: 'abw-wrapper',
@@ -1133,8 +1139,7 @@ registerBlockType(metadata.name, {
 			'data-ffaw-threshold': String(threshold),
 			'data-ffaw-loop': !isMediaScrollPreset(preset) && loop ? '1' : '0',
 			'data-ffaw-click-toggle': clickToggle ? '1' : '0',
-			// Omit defaults so existing saved markup stays valid.
-			...(normalizedAnimationMode !== 'in'
+			...(shouldSerializeAnimationMode
 				? { 'data-ffaw-animation-mode': normalizedAnimationMode }
 				: {}),
 			...(normalizedAnimationMode === 'both' && normalizedExitMode !== 'rewind'

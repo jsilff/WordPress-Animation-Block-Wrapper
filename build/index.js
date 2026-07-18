@@ -1093,8 +1093,13 @@
 				'data-ffaw-media-scroll-document-start': String(mediaScrollDocumentStart),
 				'data-ffaw-media-scroll-document-end': String(mediaScrollDocumentEnd),
 			};
-			// Omit defaults so existing saved markup stays valid.
-			if (normalizedAnimationMode !== 'in') {
+			// Omit default `in` so older saved markup stays valid — except when missing
+			// mode would be inferred as legacy `both` (scroll replay / click toggle).
+			const shouldSerializeAnimationMode =
+				normalizedAnimationMode !== 'in' ||
+				(!once && effectiveTrigger === 'scroll') ||
+				(clickToggle && effectiveTrigger === 'click');
+			if (shouldSerializeAnimationMode) {
 				saveProps['data-ffaw-animation-mode'] = normalizedAnimationMode;
 			}
 			if (normalizedAnimationMode === 'both' && normalizedExitMode !== 'rewind') {

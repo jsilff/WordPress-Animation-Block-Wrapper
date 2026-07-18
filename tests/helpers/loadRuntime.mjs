@@ -84,10 +84,12 @@ function installMediaElementStubs(window) {
 }
 
 function installIntersectionObserver(window) {
+	window.__ABW_OBSERVERS__ = [];
 	window.IntersectionObserver = class IntersectionObserver {
 		constructor(callback) {
 			this.callback = callback;
 			this.elements = new Set();
+			window.__ABW_OBSERVERS__.push(this);
 		}
 		observe(el) {
 			this.elements.add(el);
