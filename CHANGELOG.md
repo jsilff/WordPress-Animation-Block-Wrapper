@@ -13,6 +13,9 @@ All notable changes to this project will be documented in this file.
 - Skip exit when entrance is still delayed; queue exit until entrance fully finishes (no interrupted cycles).
 - Always re-prime the initial invisible state after skip/exit when the entrance starts hidden.
 - Prime hover (starts-hidden) invisible state on load — not only after the first mouse interaction.
+- Nested wrappers: clearer **Match parent timing** vs **Join parent animation** controls.
+- Fix nested-only parents (e.g. Rise wrapping Hover) getting zero targets so the outer effect never fired.
+- Hide-until-hover no longer forces nested wrappers hidden unless they join the parent animation (keeps independent Scrub visible).
 
 ## 1.1.0 - 2026-06-03
 
