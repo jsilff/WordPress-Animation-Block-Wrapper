@@ -5,14 +5,13 @@ All notable changes to this project will be documented in this file.
 ## 1.2.0 - 2026-07-18
 
 - Added derived exit styles from entrance presets — no separate exit catalog.
-- Replaced exit-style config with **Animate In / Out / In & Out** (hidden for Scrub, loop presets, load, and loop trigger).
+- **Animate In / Out / In & Out** (hidden for Scrub, loop presets, load, and loop trigger).
 - When **Animate In & Out** is selected, **Exit direction** offers Reverse or Continue (derived from the same preset).
 - Exit now plays on hover leave, click toggle off, and scroll leave when mode includes Out.
 - Text exits reverse their stagger order (last unit leaves first).
-- Default missing `data-ffaw-once` to play-once (true), matching the React port — avoids viewport-edge hide/animate flicker.
+- Default missing `data-ffaw-once` to play-once (true) — avoids viewport-edge hide/animate flicker.
 - Skip exit when entrance is still delayed; queue exit until entrance fully finishes (no interrupted cycles).
 - Always re-prime the initial invisible state after skip/exit when the entrance starts hidden.
-- Prime hover (starts-hidden) invisible state on load — not only after the first mouse interaction.
 - Nested wrappers: clearer **Match parent timing** vs **Join parent animation** controls.
 - Fix nested-only parents (e.g. Rise wrapping Hover) getting zero targets so the outer effect never fired.
 - Hide-until-hover no longer forces nested wrappers hidden unless they join the parent animation (keeps independent Scrub visible).
@@ -20,7 +19,6 @@ All notable changes to this project will be documented in this file.
 - Expanded nested scenario coverage: target matrix, inherit-delay stacks, hide-until-hover arming, parent-replay cascading, and config smoke combos.
 - Animation Settings panel now opens by default in the editor sidebar.
 - Added **Remove animation & keep content** to unwrap inner blocks without manually moving them out first (also registers Ungroup).
-- Set WordPress.org contributor to `jsilff`.
 
 ## 1.1.0 - 2026-06-03
 
