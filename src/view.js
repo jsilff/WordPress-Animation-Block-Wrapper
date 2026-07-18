@@ -2130,8 +2130,41 @@ function initAnimationWrappers() {
 	wrappers.forEach(setupWrapper);
 }
 
-if (document.readyState === 'loading') {
-	document.addEventListener('DOMContentLoaded', initAnimationWrappers);
-} else {
-	initAnimationWrappers();
+function bootAnimationWrappers() {
+	if (document.readyState === 'loading') {
+		document.addEventListener('DOMContentLoaded', initAnimationWrappers);
+	} else {
+		initAnimationWrappers();
+	}
+}
+
+if (typeof globalThis !== 'undefined' && globalThis.__ABW_TEST__) {
+	globalThis.__ABW = {
+		getAnimationTargets,
+		mergeFollowTargets,
+		getParentFollowWrapperTargets,
+		getDirectChildTargets,
+		resolveAnimationMode,
+		resolveOnceOption,
+		animationModeIncludesIn,
+		animationModeIncludesOut,
+		deriveExitKeyframes,
+		normalizeExitMode,
+		hasEntranceVisuallyStarted,
+		hasEntranceFullyCompleted,
+		keyframesStartHidden,
+		resolvePresetKeyframes,
+		normalizePresetSettings,
+		applyIntensityToKeyframes,
+		resolveInheritedDelay,
+		setupWrapper,
+		initAnimationWrappers,
+		playExitAnimation,
+		enforceInitialInvisibleState,
+		cancelPendingEntrance,
+		clearQueuedExit,
+		animateChildren,
+	};
+} else if (typeof document !== 'undefined') {
+	bootAnimationWrappers();
 }
