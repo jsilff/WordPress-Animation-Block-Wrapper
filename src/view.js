@@ -433,6 +433,17 @@ function normalizeExitMode(rawMode) {
 	return rawMode === 'continue' ? 'continue' : 'rewind';
 }
 
+/**
+ * Resolve play-once from data attrs. Default true when the attribute is unset
+ * (matches block.json / React DEFAULT_ANIMATION_OPTIONS.once).
+ * Only an explicit "0" disables once — treating missing as false would re-prime
+ * on every viewport-edge leave and flicker (same class of bug as spreading
+ * `once: undefined` over the React default).
+ */
+function resolveOnceOption(wrapper) {
+	return wrapper.dataset.ffawOnce !== '0';
+}
+
 function tokenizeText(text, mode) {
 	if (mode === 'character') {
 		return Array.from(text).map((char) =>
@@ -1477,7 +1488,7 @@ function setupScrollMediaControl(wrapper) {
 		: 'forward';
 	const directionLimit = wrapper.dataset.ffawMediaScrollDirectionLimit || 'both';
 	const playbackCycles = wrapper.dataset.ffawMediaScrollPlaybackCycles || 1;
-	const once = wrapper.dataset.ffawOnce === '1';
+	const once = resolveOnceOption(wrapper);
 	let rafId = 0;
 	let lastRawProgress = null;
 	let hasMoved = false;
@@ -1569,7 +1580,7 @@ function setupWrapper(wrapper) {
 		resolveWrapperAnimationState(wrapper, resolveDirectionOverride());
 	const initialAnimationState = resolveCurrentAnimationState();
 	const { preset, textGranularity, keyframes } = initialAnimationState;
-	const once = wrapper.dataset.ffawOnce === '1';
+	const once = resolveOnceOption(wrapper);
 	const clickToggle = wrapper.dataset.ffawClickToggle === '1';
 	const hideUntilHover = wrapper.dataset.ffawHideUntilHover === '1';
 	const threshold = Number(wrapper.dataset.ffawThreshold || 0.25);
