@@ -201,6 +201,16 @@
 		return labels[trigger] || __('Scroll', 'anilibrary');
 	}
 
+	function getAnimationModeBadgeLabel(mode) {
+		if (mode === 'out') {
+			return __('Out', 'anilibrary');
+		}
+		if (mode === 'both') {
+			return __('In & Out', 'anilibrary');
+		}
+		return __('In', 'anilibrary');
+	}
+
 	function getDirectionOptions(presetId) {
 		const scrollLinkedOptions = [
 			{ label: __('Scroll Direction', 'anilibrary'), value: 'scroll' },
