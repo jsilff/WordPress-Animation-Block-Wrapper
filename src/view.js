@@ -244,7 +244,14 @@ function applyInitialState(target, keyframes) {
 	}
 	const from = keyframes[0];
 	Object.keys(from).forEach((property) => {
-		target.style[property] = from[property];
+		if (property === 'offset') {
+			return;
+		}
+		const value = from[property];
+		if (value === undefined || value === null) {
+			return;
+		}
+		target.style[property] = value;
 	});
 }
 
@@ -252,6 +259,45 @@ function clearInlineState(target) {
 	target.style.opacity = '';
 	target.style.transform = '';
 	target.style.filter = '';
+}
+
+/**
+ * Release WAAPI fill and force a sharp rest state.
+ * Mobile Safari often keeps a composited mid-flight `filter: blur(...)` layer after
+ * finish/cancel; commitStyles alone is not enough — cancel the effect, then bounce
+ * the filter through a tiny blur and none so WebKit drops the stuck layer.
+ * Call only after `abwEntranceCompleted = true` so exit gating still works.
+ */
+function settleCompletedEntrance(animations, targets) {
+	animations.forEach((animation) => {
+		try {
+			if (typeof animation.commitStyles === 'function') {
+				animation.commitStyles();
+			}
+		} catch (_error) {
+			// commitStyles can throw if the effect was already released.
+		}
+		try {
+			animation.cancel();
+		} catch (_error) {
+			// Ignore already-finished / released animations.
+		}
+	});
+
+	targets.forEach((target) => {
+		target.style.setProperty('opacity', '1');
+		target.style.setProperty('transform', 'none');
+		// Bounce filter so WebKit rebuilds the layer instead of keeping mid-blur.
+		target.style.setProperty('filter', 'blur(0.01px)');
+		void target.offsetWidth;
+		target.style.setProperty('filter', 'none');
+		void target.offsetWidth;
+		clearInlineState(target);
+	});
+}
+
+function clearPendingClass(wrapper) {
+	wrapper.classList.remove('abw-pending');
 }
 
 function clamp(value, min, max) {
@@ -738,6 +784,12 @@ function getDirectChildTargets(wrapper) {
 	return Array.from(wrapper.children).filter((child) => child.nodeType === 1);
 }
 
+function getMarkedStaggerTargets(wrapper) {
+	return getDirectChildTargets(wrapper).filter((child) => {
+		return child.classList.contains('abw-stagger-item') || child.dataset.ffawStaggerItem === '1';
+	});
+}
+
 function mergeFollowTargets(wrapper, targets) {
 	const merged = Array.isArray(targets) ? [...targets] : [];
 	const followTargets = getParentFollowWrapperTargets(wrapper);
@@ -783,6 +835,13 @@ function getAnimationTargets(wrapper, preset, textGranularity) {
 	}
 
 	restoreTextSplits(wrapper);
+
+	// Explicitly marked stagger items win when present.
+	const marked = getMarkedStaggerTargets(wrapper);
+	if (marked.length) {
+		return marked;
+	}
+
 	const childTargets = getDirectChildTargets(wrapper);
 	const preferredTargets = childTargets.filter((child) => {
 		if (child.classList.contains('abw-wrapper')) {
@@ -829,6 +888,10 @@ function animateTargets(targets, keyframes, options, reverse) {
 }
 
 function cancelWrapperAnimations(wrapper) {
+	const settleTimers = Array.isArray(wrapper.abwSettleTimers) ? wrapper.abwSettleTimers : [];
+	settleTimers.forEach((id) => window.clearTimeout(id));
+	wrapper.abwSettleTimers = [];
+
 	const runningAnimations = Array.isArray(wrapper.abwAnimations)
 		? wrapper.abwAnimations
 		: [];
@@ -912,7 +975,7 @@ function animateChildren(wrapper, reverse = false, config = {}) {
 	);
 	let effectiveStagger = isTextContent
 		? resolveTextStagger(rawStagger, textGranularity)
-		: 0;
+		: rawStagger;
 	if (shouldLoop && isTextContent && textGranularity === 'character' && targets.length > 1) {
 		// Keep character loops snappy by capping total stagger window.
 		const maxCascadeMs = 900;
@@ -972,6 +1035,18 @@ function animateChildren(wrapper, reverse = false, config = {}) {
 	}
 
 	if (!reverse && iterations !== Infinity && animations.length) {
+		const settleIfCurrent = () => {
+			if (wrapper.abwAnimations !== animations) {
+				return;
+			}
+			if (wrapper.abwEntranceCompleted) {
+				return;
+			}
+			wrapper.abwEntranceCompleted = true;
+			settleCompletedEntrance(animations, targets);
+			wrapper.abwAnimations = [];
+		};
+
 		Promise.allSettled(
 			animations.map((animation) =>
 				animation.finished.catch(() => undefined)
@@ -980,10 +1055,23 @@ function animateChildren(wrapper, reverse = false, config = {}) {
 			const completedCleanly = animations.every(
 				(animation) => animation.playState === 'finished'
 			);
-			if (completedCleanly) {
-				wrapper.abwEntranceCompleted = true;
+			if (!completedCleanly) {
+				return;
 			}
+			settleIfCurrent();
 		});
+
+		// Watchdog: if `finished` never resolves (or Safari leaves a stuck layer),
+		// force the rest state after the full delay + active duration window.
+		const lastStagger = Math.max(0, targets.length - 1) * effectiveStagger;
+		const activeDuration = Number.isFinite(iterations) && iterations > 1
+			? duration * iterations
+			: duration;
+		const settleAfterMs = Math.max(0, delay) + activeDuration + lastStagger + 80;
+		const settleTimer = window.setTimeout(settleIfCurrent, settleAfterMs);
+		const priorTimers = Array.isArray(wrapper.abwSettleTimers) ? wrapper.abwSettleTimers : [];
+		priorTimers.forEach((id) => window.clearTimeout(id));
+		wrapper.abwSettleTimers = [settleTimer];
 	}
 
 	if (typeof config.onComplete === 'function' && iterations !== Infinity && animations.length) {
@@ -1079,6 +1167,11 @@ function clearQueuedExit(wrapper) {
 function queueExitAfterEntrance(wrapper, config = {}) {
 	const animations = Array.isArray(wrapper.abwAnimations) ? wrapper.abwAnimations : [];
 	if (!animations.length) {
+		// Entrance may already have been settled (animations canceled after complete).
+		if (wrapper.abwEntranceCompleted) {
+			playExitAnimation(wrapper, config);
+			return;
+		}
 		cancelPendingEntrance(wrapper, config);
 		return;
 	}
@@ -1102,7 +1195,8 @@ function queueExitAfterEntrance(wrapper, config = {}) {
 		const completedCleanly = animations.every(
 			(animation) => animation.playState === 'finished'
 		);
-		if (!completedCleanly) {
+		// Settled entrances cancel WAAPI (Safari blur fix) — trust the completion flag.
+		if (!completedCleanly && !wrapper.abwEntranceCompleted) {
 			cancelPendingEntrance(wrapper, config);
 			return;
 		}
@@ -1144,7 +1238,7 @@ function cancelPendingEntrance(wrapper, config = {}) {
 	enforceInitialInvisibleState(wrapper, config);
 }
 
-function isWrapperInViewport(wrapper, threshold) {
+function isWrapperInViewport(wrapper, threshold, rootMargin = '') {
 	const rect = wrapper.getBoundingClientRect();
 	const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
 	const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
@@ -1152,8 +1246,15 @@ function isWrapperInViewport(wrapper, threshold) {
 		return false;
 	}
 
-	const visibleWidth = Math.min(rect.right, viewportWidth) - Math.max(rect.left, 0);
-	const visibleHeight = Math.min(rect.bottom, viewportHeight) - Math.max(rect.top, 0);
+	const margins = parseRootMargin(rootMargin, viewportWidth, viewportHeight);
+	// IntersectionObserver rootMargin expands (positive) or shrinks (negative) the root.
+	const rootLeft = 0 - margins.left;
+	const rootTop = 0 - margins.top;
+	const rootRight = viewportWidth + margins.right;
+	const rootBottom = viewportHeight + margins.bottom;
+
+	const visibleWidth = Math.min(rect.right, rootRight) - Math.max(rect.left, rootLeft);
+	const visibleHeight = Math.min(rect.bottom, rootBottom) - Math.max(rect.top, rootTop);
 	if (visibleWidth <= 0 || visibleHeight <= 0) {
 		return false;
 	}
@@ -1166,6 +1267,56 @@ function isWrapperInViewport(wrapper, threshold) {
 	const visibleRatio = (visibleWidth * visibleHeight) / area;
 	const clampedThreshold = clamp(Number(threshold) || 0, 0, 1);
 	return visibleRatio >= clampedThreshold;
+}
+
+/**
+ * Parse CSS-like rootMargin (1–4 values, px or %) into pixel offsets for the viewport root.
+ */
+function parseRootMargin(rootMargin, viewportWidth, viewportHeight) {
+	const raw = String(rootMargin || '0px').trim() || '0px';
+	const parts = raw.split(/\s+/).filter(Boolean);
+	const resolveToken = (token, axisSize) => {
+		const match = String(token).trim().match(/^(-?\d*\.?\d+)(px|%)?$/i);
+		if (!match) {
+			return 0;
+		}
+		const value = Number(match[1]);
+		if (!Number.isFinite(value)) {
+			return 0;
+		}
+		const unit = (match[2] || 'px').toLowerCase();
+		if (unit === '%') {
+			return (value / 100) * axisSize;
+		}
+		return value;
+	};
+
+	let topToken;
+	let rightToken;
+	let bottomToken;
+	let leftToken;
+	if (parts.length <= 1) {
+		topToken = rightToken = bottomToken = leftToken = parts[0] || '0px';
+	} else if (parts.length === 2) {
+		topToken = bottomToken = parts[0];
+		rightToken = leftToken = parts[1];
+	} else if (parts.length === 3) {
+		topToken = parts[0];
+		rightToken = leftToken = parts[1];
+		bottomToken = parts[2];
+	} else {
+		topToken = parts[0];
+		rightToken = parts[1];
+		bottomToken = parts[2];
+		leftToken = parts[3];
+	}
+
+	return {
+		top: resolveToken(topToken, viewportHeight),
+		right: resolveToken(rightToken, viewportWidth),
+		bottom: resolveToken(bottomToken, viewportHeight),
+		left: resolveToken(leftToken, viewportWidth),
+	};
 }
 
 function collectScrollMediaTargets(wrapper) {
@@ -1751,6 +1902,7 @@ function setupScrollMediaControl(wrapper) {
 function setupWrapper(wrapper) {
 	const trigger = wrapper.dataset.ffawTrigger || 'scroll';
 	if (trigger === 'scroll-media') {
+		clearPendingClass(wrapper);
 		setupScrollMediaControl(wrapper);
 		return;
 	}
@@ -1778,11 +1930,20 @@ function setupWrapper(wrapper) {
 	const clickToggle =
 		wrapper.dataset.ffawClickToggle === '1' || animationMode === 'both' || animationMode === 'out';
 	const threshold = Number(wrapper.dataset.ffawThreshold || 0.25);
+	const rootMargin = wrapper.dataset.ffawRootMargin || '';
 	const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 	let playCount = 0;
 
 	if (reduceMotion) {
 		wrapper.classList.add('abw-motion-reduced');
+		clearPendingClass(wrapper);
+		return;
+	}
+
+	// Nested wrappers driven by their parent do not attach their own trigger.
+	// Do not prime descendants — the parent animates this wrapper as a shell.
+	if (wrapper.dataset.ffawFollowParentAnimation === '1') {
+		clearPendingClass(wrapper);
 		return;
 	}
 
@@ -1815,6 +1976,7 @@ function setupWrapper(wrapper) {
 		});
 		wrapper.abwEntranceCompleted = true;
 	}
+	clearPendingClass(wrapper);
 
 	const triggerWrapperAnimation = (config = {}) => {
 		clearQueuedExit(wrapper);
@@ -1822,6 +1984,7 @@ function setupWrapper(wrapper) {
 			wrapper.classList.add('abw-hover-armed');
 			wrapper.classList.remove('abw-hide-until-hover');
 		}
+		clearPendingClass(wrapper);
 		playCount += 1;
 		animateChildren(wrapper, false, {
 			...config,
@@ -1851,7 +2014,8 @@ function setupWrapper(wrapper) {
 					return;
 				}
 				const nestedThreshold = Number(nestedWrapper.dataset.ffawThreshold || 0.25);
-				if (!isWrapperInViewport(nestedWrapper, nestedThreshold)) {
+				const nestedRootMargin = nestedWrapper.dataset.ffawRootMargin || '';
+				if (!isWrapperInViewport(nestedWrapper, nestedThreshold, nestedRootMargin)) {
 					return;
 				}
 				nestedWrapper.abwReplay({
@@ -2020,7 +2184,7 @@ function setupWrapper(wrapper) {
 			if (isInView) {
 				return;
 			}
-			if (isWrapperInViewport(wrapper, threshold)) {
+			if (isWrapperInViewport(wrapper, threshold, rootMargin)) {
 				isInView = true;
 				hasPlayed = true;
 				clearQueuedExit(wrapper);
@@ -2115,7 +2279,7 @@ function setupWrapper(wrapper) {
 					}
 				});
 			},
-			{ threshold }
+			{ threshold: [0, threshold, 1], rootMargin: rootMargin || '0px' }
 		);
 		observer.observe(wrapper);
 		window.addEventListener('scroll', scheduleManualCheck, { passive: true });
@@ -2147,6 +2311,7 @@ function bootAnimationWrappers() {
 if (typeof globalThis !== 'undefined' && globalThis.__ABW_TEST__) {
 	globalThis.__ABW = {
 		getAnimationTargets,
+		getMarkedStaggerTargets,
 		mergeFollowTargets,
 		getParentFollowWrapperTargets,
 		getDirectChildTargets,
@@ -2163,6 +2328,10 @@ if (typeof globalThis !== 'undefined' && globalThis.__ABW_TEST__) {
 		normalizePresetSettings,
 		applyIntensityToKeyframes,
 		resolveInheritedDelay,
+		parseRootMargin,
+		isWrapperInViewport,
+		settleCompletedEntrance,
+		clearPendingClass,
 		setupWrapper,
 		initAnimationWrappers,
 		playExitAnimation,

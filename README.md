@@ -4,6 +4,6 @@ MIT-licensed Gutenberg wrapper block plugin for lightweight, content-aware anima
 
 See `readme.txt` for WordPress.org-ready documentation.
 
-## 1.2.0
+## 1.3.0
 
-Adds Animate In / Out / In & Out with derived Reverse or Continue exits, safer exit timing, nested wrapper fixes (join vs timing, hide-until-hover), unwrap-from-sidebar, and expanded automated scenario tests.
+Ports React AniLibrary shared-runtime parity: Safari blur settle, join-parent early-return, scroll IO thresholds + viewport margin, `abw-pending` no-flash, and layout/item stagger (`abw-stagger-item`).
