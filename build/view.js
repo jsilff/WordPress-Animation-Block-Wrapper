@@ -1062,9 +1062,12 @@ function animateChildren(wrapper, reverse = false, config = {}) {
 		});
 
 		// Watchdog: if `finished` never resolves (or Safari leaves a stuck layer),
-		// force the rest state after the full delay + duration window.
+		// force the rest state after the full delay + active duration window.
 		const lastStagger = Math.max(0, targets.length - 1) * effectiveStagger;
-		const settleAfterMs = Math.max(0, delay) + duration + lastStagger + 80;
+		const activeDuration = Number.isFinite(iterations) && iterations > 1
+			? duration * iterations
+			: duration;
+		const settleAfterMs = Math.max(0, delay) + activeDuration + lastStagger + 80;
 		const settleTimer = window.setTimeout(settleIfCurrent, settleAfterMs);
 		const priorTimers = Array.isArray(wrapper.abwSettleTimers) ? wrapper.abwSettleTimers : [];
 		priorTimers.forEach((id) => window.clearTimeout(id));
@@ -1235,7 +1238,7 @@ function cancelPendingEntrance(wrapper, config = {}) {
 	enforceInitialInvisibleState(wrapper, config);
 }
 
-function isWrapperInViewport(wrapper, threshold) {
+function isWrapperInViewport(wrapper, threshold, rootMargin = '') {
 	const rect = wrapper.getBoundingClientRect();
 	const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
 	const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
@@ -1243,8 +1246,15 @@ function isWrapperInViewport(wrapper, threshold) {
 		return false;
 	}
 
-	const visibleWidth = Math.min(rect.right, viewportWidth) - Math.max(rect.left, 0);
-	const visibleHeight = Math.min(rect.bottom, viewportHeight) - Math.max(rect.top, 0);
+	const margins = parseRootMargin(rootMargin, viewportWidth, viewportHeight);
+	// IntersectionObserver rootMargin expands (positive) or shrinks (negative) the root.
+	const rootLeft = 0 - margins.left;
+	const rootTop = 0 - margins.top;
+	const rootRight = viewportWidth + margins.right;
+	const rootBottom = viewportHeight + margins.bottom;
+
+	const visibleWidth = Math.min(rect.right, rootRight) - Math.max(rect.left, rootLeft);
+	const visibleHeight = Math.min(rect.bottom, rootBottom) - Math.max(rect.top, rootTop);
 	if (visibleWidth <= 0 || visibleHeight <= 0) {
 		return false;
 	}
@@ -1257,6 +1267,56 @@ function isWrapperInViewport(wrapper, threshold) {
 	const visibleRatio = (visibleWidth * visibleHeight) / area;
 	const clampedThreshold = clamp(Number(threshold) || 0, 0, 1);
 	return visibleRatio >= clampedThreshold;
+}
+
+/**
+ * Parse CSS-like rootMargin (1–4 values, px or %) into pixel offsets for the viewport root.
+ */
+function parseRootMargin(rootMargin, viewportWidth, viewportHeight) {
+	const raw = String(rootMargin || '0px').trim() || '0px';
+	const parts = raw.split(/\s+/).filter(Boolean);
+	const resolveToken = (token, axisSize) => {
+		const match = String(token).trim().match(/^(-?\d*\.?\d+)(px|%)?$/i);
+		if (!match) {
+			return 0;
+		}
+		const value = Number(match[1]);
+		if (!Number.isFinite(value)) {
+			return 0;
+		}
+		const unit = (match[2] || 'px').toLowerCase();
+		if (unit === '%') {
+			return (value / 100) * axisSize;
+		}
+		return value;
+	};
+
+	let topToken;
+	let rightToken;
+	let bottomToken;
+	let leftToken;
+	if (parts.length <= 1) {
+		topToken = rightToken = bottomToken = leftToken = parts[0] || '0px';
+	} else if (parts.length === 2) {
+		topToken = bottomToken = parts[0];
+		rightToken = leftToken = parts[1];
+	} else if (parts.length === 3) {
+		topToken = parts[0];
+		rightToken = leftToken = parts[1];
+		bottomToken = parts[2];
+	} else {
+		topToken = parts[0];
+		rightToken = parts[1];
+		bottomToken = parts[2];
+		leftToken = parts[3];
+	}
+
+	return {
+		top: resolveToken(topToken, viewportHeight),
+		right: resolveToken(rightToken, viewportWidth),
+		bottom: resolveToken(bottomToken, viewportHeight),
+		left: resolveToken(leftToken, viewportWidth),
+	};
 }
 
 function collectScrollMediaTargets(wrapper) {
@@ -1881,12 +1941,8 @@ function setupWrapper(wrapper) {
 	}
 
 	// Nested wrappers driven by their parent do not attach their own trigger.
+	// Do not prime descendants — the parent animates this wrapper as a shell.
 	if (wrapper.dataset.ffawFollowParentAnimation === '1') {
-		if (playsIn && animationMode !== 'out') {
-			enforceInitialInvisibleState(wrapper, {
-				directionOverride: resolveDirectionOverride(),
-			});
-		}
 		clearPendingClass(wrapper);
 		return;
 	}
@@ -1958,7 +2014,8 @@ function setupWrapper(wrapper) {
 					return;
 				}
 				const nestedThreshold = Number(nestedWrapper.dataset.ffawThreshold || 0.25);
-				if (!isWrapperInViewport(nestedWrapper, nestedThreshold)) {
+				const nestedRootMargin = nestedWrapper.dataset.ffawRootMargin || '';
+				if (!isWrapperInViewport(nestedWrapper, nestedThreshold, nestedRootMargin)) {
 					return;
 				}
 				nestedWrapper.abwReplay({
@@ -2127,7 +2184,7 @@ function setupWrapper(wrapper) {
 			if (isInView) {
 				return;
 			}
-			if (isWrapperInViewport(wrapper, threshold)) {
+			if (isWrapperInViewport(wrapper, threshold, rootMargin)) {
 				isInView = true;
 				hasPlayed = true;
 				clearQueuedExit(wrapper);

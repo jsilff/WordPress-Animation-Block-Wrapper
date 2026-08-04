@@ -88,9 +88,35 @@ describe('1.3.0 join-parent early return', () => {
 		await new Promise((resolve) => setTimeout(resolve, 30));
 
 		assert.equal(animateCalls.length, 0);
-		// Primed invisible for plays-in joiners.
+		// Parent animates the shell — do not prime nested internals (would stick at opacity 0).
 		const childContent = child.querySelector('p');
-		assert.equal(childContent.style.opacity, '0');
+		assert.notEqual(childContent.style.opacity, '0');
+	});
+
+	it('leaves joining internals unprimed so parent shell animation can reveal them', () => {
+		const { document, abw } = createRuntime();
+		const parent = makeWrapper(document, {
+			preset: 'fade',
+			trigger: 'scroll',
+			animationMode: 'in',
+			html: '',
+		});
+		const joining = makeWrapper(document, {
+			preset: 'fade',
+			trigger: 'scroll',
+			followParentAnimation: true,
+			html: '<p data-test-id="copy">Copy</p>',
+		});
+		parent.appendChild(joining);
+		document.body.appendChild(parent);
+
+		abw.setupWrapper(parent);
+		abw.setupWrapper(joining);
+
+		const copy = joining.querySelector('[data-test-id="copy"]');
+		assert.notEqual(copy.style.opacity, '0');
+		// Parent primes the joining shell itself.
+		assert.equal(joining.style.opacity, '0');
 	});
 });
 
@@ -113,6 +139,56 @@ describe('1.3.0 scroll IO + rootMargin', () => {
 		assert.ok(observer);
 		assert.equal(JSON.stringify(observer.options.threshold), JSON.stringify([0, 0.25, 1]));
 		assert.equal(observer.options.rootMargin, '0px 0px -10% 0px');
+	});
+
+	it('manual viewport check honors rootMargin the same way as IO', () => {
+		const { document, abw, window } = createRuntime();
+		Object.defineProperty(window, 'innerHeight', { configurable: true, value: 1000 });
+		Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1000 });
+		const wrap = makeWrapper(document, {
+			preset: 'fade',
+			html: '<p>Edge</p>',
+		});
+		document.body.appendChild(wrap);
+		// Fully in normal viewport, but outside a root shrunk by 40% from the bottom.
+		stubInViewport(wrap, { top: 700, height: 100, width: 200, left: 10 });
+
+		assert.equal(abw.isWrapperInViewport(wrap, 0.25), true);
+		assert.equal(abw.isWrapperInViewport(wrap, 0.25, '0px 0px -40% 0px'), false);
+	});
+});
+
+describe('1.3.0 settle deadline', () => {
+	it('schedules settle watchdog across all bounce iterations', () => {
+		const { document, abw, window } = createRuntime();
+		const scheduled = [];
+		const nativeSetTimeout = window.setTimeout.bind(window);
+		window.setTimeout = (fn, ms, ...args) => {
+			scheduled.push(Number(ms) || 0);
+			return nativeSetTimeout(fn, ms, ...args);
+		};
+
+		const wrap = makeWrapper(document, {
+			preset: 'bounce-soft',
+			trigger: 'click',
+			animationMode: 'in',
+			delay: 0,
+			duration: 100,
+			html: '<div>Bounce</div>',
+		});
+		wrap.dataset.ffawBounceCount = '3';
+		document.body.appendChild(wrap);
+		abw.setupWrapper(wrap);
+		wrap.dispatchEvent(new window.Event('click', { bubbles: true }));
+
+		const entrance = [...(wrap.abwAnimations || [])];
+		assert.ok(entrance.length);
+		assert.equal(entrance[0].effect.getTiming().iterations, 3);
+		// delay(0) + duration(100)*iterations(3) + stagger(0) + 80
+		assert.ok(
+			scheduled.includes(380),
+			`expected settle watchdog of 380ms, got ${JSON.stringify(scheduled)}`
+		);
 	});
 });
 

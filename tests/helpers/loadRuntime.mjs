@@ -13,17 +13,21 @@ function installAnimateMock(window) {
 	window.Element.prototype.animate = function animate(keyframes, options = {}) {
 		const delay = Number(options.delay) || 0;
 		const duration = Number(options.duration) || 0;
+		const iterations = options.iterations === Infinity
+			? Infinity
+			: Math.max(1, Number(options.iterations) || 1);
 		const startedAt = Date.now();
 		let playState = 'running';
 		let currentTime = 0;
 		const record = {
 			target: this,
 			keyframes,
-			options: { ...options, delay, duration },
+			options: { ...options, delay, duration, iterations },
 		};
 		window.__ABW_ANIMATE_CALLS__.push(record);
+		const activeMs = Number.isFinite(iterations) ? duration * iterations : duration;
 		const finished = new Promise((resolve) => {
-			const total = delay + duration;
+			const total = delay + activeMs;
 			setTimeout(() => {
 				if (playState === 'running') {
 					playState = 'finished';
@@ -39,16 +43,16 @@ function installAnimateMock(window) {
 			},
 			get currentTime() {
 				if (playState === 'finished') {
-					return delay + duration;
+					return delay + activeMs;
 				}
 				if (playState === 'idle') {
 					return currentTime;
 				}
-				return Math.min(Date.now() - startedAt, delay + duration);
+				return Math.min(Date.now() - startedAt, delay + activeMs);
 			},
 			effect: {
 				getTiming() {
-					return { delay, duration };
+					return { delay, duration, iterations };
 				},
 			},
 			commitStyles() {
