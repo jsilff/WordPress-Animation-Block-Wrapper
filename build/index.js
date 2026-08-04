@@ -1,7 +1,7 @@
 (function (wp) {
 	const { registerBlockType } = wp.blocks;
 	const { InspectorControls, InnerBlocks, useBlockProps, useInnerBlocksProps } = wp.blockEditor;
-	const { PanelBody, SelectControl, RangeControl, ToggleControl, Tooltip, Button } = wp.components;
+	const { PanelBody, SelectControl, RangeControl, TextControl, ToggleControl, Tooltip, Button } = wp.components;
 	const { __ } = wp.i18n;
 	const { useDispatch, useSelect } = wp.data;
 	const { useEffect, useMemo, useState, Fragment, createElement } = wp.element;
@@ -26,6 +26,7 @@
 			easing: { type: 'string', default: 'ease-out' },
 			once: { type: 'boolean', default: true },
 			threshold: { type: 'number', default: 0.25 },
+			rootMargin: { type: 'string', default: '' },
 			loop: { type: 'boolean', default: false },
 			clickToggle: { type: 'boolean', default: false },
 			animationMode: { type: 'string', default: 'in' },
@@ -180,6 +181,36 @@
 
 	function normalizeExitMode(value) {
 		return value === 'continue' ? 'continue' : 'rewind';
+	}
+
+	function presetStartsHidden(presetId) {
+		return ['pulse-soft', 'float-soft', 'bounce-soft', 'scroll-media'].indexOf(presetId) === -1;
+	}
+
+	function shouldPrimeOnMount(attrs) {
+		const mode = normalizeAnimationMode(attrs.animationMode);
+		if (mode === 'out') {
+			return false;
+		}
+
+		const effectiveTrigger = isMediaScrollPreset(attrs.preset) ? 'scroll-media' : attrs.trigger;
+		if (effectiveTrigger === 'scroll-media') {
+			return !!attrs.followParentAnimation && presetStartsHidden(attrs.preset);
+		}
+
+		if (effectiveTrigger === 'hover' && !attrs.hideUntilHover) {
+			return false;
+		}
+
+		if (['scroll', 'load', 'click', 'loop'].indexOf(effectiveTrigger) !== -1) {
+			return presetStartsHidden(attrs.preset);
+		}
+
+		if (effectiveTrigger === 'hover' && attrs.hideUntilHover) {
+			return presetStartsHidden(attrs.preset);
+		}
+
+		return false;
 	}
 
 	function formatDelaySeconds(ms) {
@@ -371,7 +402,7 @@
 			const { attributes, setAttributes, clientId } = props;
 			const {
 				preset, contentKind, trigger, intensity, direction, zoomMode, bounceCount,
-				duration, delay, stagger, easing, once, threshold, loop, clickToggle, animationMode, exitMode, hideUntilHover, textGranularity, inheritParentDelay, followParentAnimation,
+				duration, delay, stagger, easing, once, threshold, rootMargin, loop, clickToggle, animationMode, exitMode, hideUntilHover, textGranularity, inheritParentDelay, followParentAnimation,
 				mediaScrollPlaybackDirection, mediaScrollDirectionLimit, mediaScrollPlaybackCycles, mediaScrollProgressSource, mediaScrollViewportEdge,
 				mediaScrollViewportStart, mediaScrollViewportEnd, mediaScrollStartAtPageTop, mediaScrollDocumentStart, mediaScrollDocumentEnd,
 			} = attributes;
@@ -587,11 +618,6 @@
 					shouldUpdate = true;
 				}
 
-				if (detectedKind !== 'text' && Number(stagger) !== 0) {
-					updates.stagger = 0;
-					shouldUpdate = true;
-				}
-
 				if (isDirectionalPreset(preset)) {
 					const validDirections = getDirectionOptions(preset).map(function (option) { return option.value; });
 					if (validDirections.indexOf(direction) === -1) {
@@ -751,15 +777,26 @@
 							  })
 							: null,
 						trigger === 'scroll'
-								? createElement(RangeControl, {
+							? createElement(
+									Fragment,
+									null,
+									createElement(RangeControl, {
 										label: __('How much should be visible before it starts (%)', 'anilibrary'),
 										value: Math.round((Number(threshold) || 0.25) * 100),
 										onChange: function (value) { setAttributes({ threshold: Math.max(0.05, Math.min(1, Number(value || 25) / 100)) }); },
 										min: 5,
 										max: 100,
 										step: 5,
-								  })
-								: null,
+									}),
+									createElement(TextControl, {
+										label: __('Viewport margin', 'anilibrary'),
+										value: rootMargin || '',
+										onChange: function (value) { setAttributes({ rootMargin: value }); },
+										help: __('Optional CSS rootMargin for earlier/later scroll triggers, e.g. 0px 0px -10% 0px.', 'anilibrary'),
+										placeholder: '0px',
+									})
+							  )
+							: null,
 						isMediaScroll
 							? createElement(
 									Fragment,
@@ -1012,6 +1049,17 @@
 									step: 25,
 							  })
 							: null,
+						detectedKind !== 'text' && !isMediaScroll
+							? createElement(RangeControl, {
+									label: __('Gap between items (ms)', 'anilibrary'),
+									value: stagger,
+									onChange: function (value) { setAttributes({ stagger: Number(value) || 0 }); },
+									min: 0,
+									max: 1000,
+									step: 25,
+									help: __('Staggers direct children. For selective stagger, add the CSS class abw-stagger-item on child blocks (Advanced → Additional CSS class(es)).', 'anilibrary'),
+							  })
+							: null,
 						createElement(
 							'div',
 							{ className: 'abw-unwrap-control' },
@@ -1054,15 +1102,24 @@
 		save: function (props) {
 			const {
 				preset, contentKind, trigger, intensity, direction, zoomMode, bounceCount,
-				duration, delay, stagger, easing, once, threshold, loop, clickToggle, animationMode, exitMode, hideUntilHover, textGranularity, inheritParentDelay, followParentAnimation,
+				duration, delay, stagger, easing, once, threshold, rootMargin, loop, clickToggle, animationMode, exitMode, hideUntilHover, textGranularity, inheritParentDelay, followParentAnimation,
 				mediaScrollPlaybackDirection, mediaScrollDirectionLimit, mediaScrollPlaybackCycles, mediaScrollProgressSource, mediaScrollViewportEdge,
 				mediaScrollViewportStart, mediaScrollViewportEnd, mediaScrollStartAtPageTop, mediaScrollDocumentStart, mediaScrollDocumentEnd,
 			} = props.attributes;
 			const effectiveTrigger = isMediaScrollPreset(preset) ? 'scroll-media' : trigger;
 			const normalizedAnimationMode = normalizeAnimationMode(animationMode);
 			const normalizedExitMode = normalizeExitMode(exitMode);
+			const pendingClass = shouldPrimeOnMount({
+				preset: preset,
+				trigger: trigger,
+				animationMode: normalizedAnimationMode,
+				hideUntilHover: hideUntilHover,
+				followParentAnimation: followParentAnimation,
+			})
+				? ' abw-pending'
+				: '';
 			const saveProps = {
-				className: 'abw-wrapper',
+				className: 'abw-wrapper' + pendingClass,
 				'data-ffaw-preset': preset,
 				'data-ffaw-content-kind': contentKind,
 				'data-ffaw-trigger': effectiveTrigger,
@@ -1093,6 +1150,9 @@
 				'data-ffaw-media-scroll-document-start': String(mediaScrollDocumentStart),
 				'data-ffaw-media-scroll-document-end': String(mediaScrollDocumentEnd),
 			};
+			if (rootMargin) {
+				saveProps['data-ffaw-root-margin'] = rootMargin;
+			}
 			// Omit default `in` so older saved markup stays valid — except when missing
 			// mode would be inferred as legacy `both` (scroll replay / click toggle).
 			const shouldSerializeAnimationMode =

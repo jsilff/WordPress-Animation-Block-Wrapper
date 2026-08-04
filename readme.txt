@@ -4,7 +4,7 @@ Tags: gutenberg, block, animation, scroll, motion
 Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.2.0
+Stable tag: 1.3.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -64,6 +64,13 @@ Select the AniLibrary wrapper and use "Remove animation & keep content" in Anima
 
 == Changelog ==
 
+= 1.3.0 =
+* Safari fix: settle completed entrances so blur does not stick mid-flight; exits still work after settle.
+* Join parent animation children no longer run their own triggers.
+* Scroll triggers use multi-threshold observers and optional viewport margin (rootMargin).
+* No-flash pending class until the runtime primes hidden entrances.
+* Layout/item stagger for non-text wrappers; selective stagger via abw-stagger-item on child blocks.
+
 = 1.2.0 =
 * Added Animate In / Out / In & Out, with Reverse or Continue exit directions derived from entrance presets.
 * Improved exit timing so delayed entrances skip exit, and mid-entrance exits wait for completion.
@@ -87,6 +94,9 @@ Select the AniLibrary wrapper and use "Remove animation & keep content" in Anima
 * Added reduced-motion-safe runtime defaults.
 
 == Upgrade Notice ==
+
+= 1.3.0 =
+Safari blur settle, join-parent fix, viewport margin, no-flash priming, and layout stagger.
 
 = 1.2.0 =
 Adds in/out animation modes, safer exit timing, nested wrapper fixes, and unwrap-from-sidebar.

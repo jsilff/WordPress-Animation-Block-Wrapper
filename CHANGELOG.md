@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## 1.3.0 - 2026-08-04
+
+- Safari / WebKit: after entrance completes, settle WAAPI with `commitStyles`, cancel, and bounce `filter` so mid-flight blur layers do not stick; exit gating trusts `abwEntranceCompleted` after settle.
+- Join parent animation children no longer attach their own scroll/hover/click/loop triggers (prime only).
+- Scroll IntersectionObserver now uses threshold `[0, t, 1]` and optional **Viewport margin** (`rootMargin` / `data-ffaw-root-margin`).
+- No-flash `abw-pending` class on save when entrance starts hidden; runtime clears it after priming.
+- Layout / item stagger: non-text wrappers can stagger children; selective targets via CSS class `abw-stagger-item` (or `data-ffaw-stagger-item="1"`).
+
 ## 1.2.0 - 2026-07-18
 
 - Added derived exit styles from entrance presets — no separate exit catalog.

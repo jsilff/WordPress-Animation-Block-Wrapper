@@ -10,6 +10,7 @@ import {
 	PanelBody,
 	SelectControl,
 	RangeControl,
+	TextControl,
 	ToggleControl,
 	Tooltip,
 } from '@wordpress/components';
@@ -139,6 +140,39 @@ function normalizeAnimationMode(value) {
 
 function normalizeExitMode(value) {
 	return value === 'continue' ? 'continue' : 'rewind';
+}
+
+function presetStartsHidden(presetId) {
+	return !['pulse-soft', 'float-soft', 'bounce-soft', 'scroll-media'].includes(presetId);
+}
+
+/**
+ * Mirror React shouldPrimeOnMount: hide wrapper until runtime primes keyframe-from state.
+ */
+function shouldPrimeOnMount(attrs) {
+	const mode = normalizeAnimationMode(attrs.animationMode);
+	if (mode === 'out') {
+		return false;
+	}
+
+	const effectiveTrigger = isMediaScrollPreset(attrs.preset) ? 'scroll-media' : attrs.trigger;
+	if (effectiveTrigger === 'scroll-media') {
+		return !!attrs.followParentAnimation && presetStartsHidden(attrs.preset);
+	}
+
+	if (effectiveTrigger === 'hover' && !attrs.hideUntilHover) {
+		return false;
+	}
+
+	if (['scroll', 'load', 'click', 'loop'].includes(effectiveTrigger)) {
+		return presetStartsHidden(attrs.preset);
+	}
+
+	if (effectiveTrigger === 'hover' && attrs.hideUntilHover) {
+		return presetStartsHidden(attrs.preset);
+	}
+
+	return false;
 }
 
 function formatDelaySeconds(ms) {
@@ -348,6 +382,7 @@ registerBlockType(metadata.name, {
 			easing,
 			once,
 			threshold,
+			rootMargin,
 			loop,
 			clickToggle,
 			animationMode,
@@ -631,11 +666,6 @@ registerBlockType(metadata.name, {
 				shouldUpdate = true;
 			}
 
-			if (detectedKind !== 'text' && Number(stagger) !== 0) {
-				updates.stagger = 0;
-				shouldUpdate = true;
-			}
-
 			if (isDirectionalPreset(preset)) {
 				const validDirections = getDirectionOptions(preset).map((option) => option.value);
 				if (!validDirections.includes(direction)) {
@@ -793,14 +823,26 @@ registerBlockType(metadata.name, {
 							/>
 						)}
 						{trigger === 'scroll' && (
-							<RangeControl
-								label={__('How much should be visible before it starts (%)', 'anilibrary')}
-								value={Math.round((Number(threshold) || 0.25) * 100)}
-								onChange={(value) => setAttributes({ threshold: Math.max(0.05, Math.min(1, Number(value || 25) / 100)) })}
-								min={5}
-								max={100}
-								step={5}
-							/>
+							<>
+								<RangeControl
+									label={__('How much should be visible before it starts (%)', 'anilibrary')}
+									value={Math.round((Number(threshold) || 0.25) * 100)}
+									onChange={(value) => setAttributes({ threshold: Math.max(0.05, Math.min(1, Number(value || 25) / 100)) })}
+									min={5}
+									max={100}
+									step={5}
+								/>
+								<TextControl
+									label={__('Viewport margin', 'anilibrary')}
+									value={rootMargin || ''}
+									onChange={(value) => setAttributes({ rootMargin: value })}
+									help={__(
+										'Optional CSS rootMargin for earlier/later scroll triggers, e.g. 0px 0px -10% 0px.',
+										'anilibrary'
+									)}
+									placeholder="0px"
+								/>
+							</>
 						)}
 						{isMediaScroll && (
 							<>
@@ -1050,6 +1092,20 @@ registerBlockType(metadata.name, {
 								step={25}
 							/>
 						)}
+						{detectedKind !== 'text' && !isMediaScroll && (
+							<RangeControl
+								label={__('Gap between items (ms)', 'anilibrary')}
+								value={stagger}
+								onChange={(value) => setAttributes({ stagger: Number(value) || 0 })}
+								min={0}
+								max={1000}
+								step={25}
+								help={__(
+									'Staggers direct children. For selective stagger, add the CSS class abw-stagger-item on child blocks (Advanced → Additional CSS class(es)).',
+									'anilibrary'
+								)}
+							/>
+						)}
 						<div className="abw-unwrap-control">
 							<Button
 								variant="secondary"
@@ -1093,6 +1149,7 @@ registerBlockType(metadata.name, {
 			easing,
 			once,
 			threshold,
+			rootMargin,
 			loop,
 			clickToggle,
 			animationMode,
@@ -1121,9 +1178,18 @@ registerBlockType(metadata.name, {
 			normalizedAnimationMode !== 'in' ||
 			(!once && effectiveTrigger === 'scroll') ||
 			(clickToggle && effectiveTrigger === 'click');
+		const pendingClass = shouldPrimeOnMount({
+			preset,
+			trigger,
+			animationMode: normalizedAnimationMode,
+			hideUntilHover,
+			followParentAnimation,
+		})
+			? ' abw-pending'
+			: '';
 
 		const blockProps = useBlockProps.save({
-			className: 'abw-wrapper',
+			className: `abw-wrapper${pendingClass}`,
 			'data-ffaw-preset': preset,
 			'data-ffaw-content-kind': contentKind,
 			'data-ffaw-trigger': effectiveTrigger,
@@ -1137,6 +1203,9 @@ registerBlockType(metadata.name, {
 			'data-ffaw-easing': easing,
 			'data-ffaw-once': once ? '1' : '0',
 			'data-ffaw-threshold': String(threshold),
+			...(rootMargin
+				? { 'data-ffaw-root-margin': rootMargin }
+				: {}),
 			'data-ffaw-loop': !isMediaScrollPreset(preset) && loop ? '1' : '0',
 			'data-ffaw-click-toggle': clickToggle ? '1' : '0',
 			...(shouldSerializeAnimationMode
