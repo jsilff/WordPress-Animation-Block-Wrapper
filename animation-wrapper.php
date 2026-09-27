@@ -3,7 +3,7 @@
  * Plugin Name:       AniLibrary
  * Plugin URI:        https://github.com/jsilff/wordpress-animation-block-wrapper
  * Description:       Wrap any block and apply lightweight, content-aware animations.
- * Version:           1.3.0
+ * Version:           1.3.1
  * Requires at least: 6.5
  * Requires PHP:      7.4
  * Author:            jsilff
@@ -20,7 +20,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'ABW_PLUGIN_VERSION', '1.3.0' );
+define( 'ABW_PLUGIN_VERSION', '1.3.1' );
 define( 'ABW_PLUGIN_FILE', __FILE__ );
 define( 'ABW_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'ABW_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
@@ -131,10 +131,14 @@ function abw_register_block() {
 	register_block_type(
 		ABW_PLUGIN_DIR,
 		array(
-			'editor_script' => 'abw-editor-script',
-			'editor_style'  => 'abw-editor-style',
-			'style'         => 'abw-style',
-			'script'        => 'abw-view-script',
+			// CamelCase keys replace block.json file paths before WordPress
+			// registers a second copy. Snake_case `script` / `editor_script`
+			// do not override those paths, so the editor bundle kept the stale
+			// asset-file version and view.js was printed twice.
+			'editorScript' => 'abw-editor-script',
+			'editorStyle'  => 'abw-editor-style',
+			'style'        => 'abw-style',
+			'viewScript'   => 'abw-view-script',
 		)
 	);
 }

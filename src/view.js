@@ -304,6 +304,49 @@ function clamp(value, min, max) {
 	return Math.min(Math.max(value, min), max);
 }
 
+function readNonNegativeNumber(value, fallback) {
+	const numeric = Number(value);
+	if (!Number.isFinite(numeric)) {
+		return fallback;
+	}
+	return Math.max(0, numeric);
+}
+
+/**
+ * IntersectionObserver accepts only px or % and throws on anything else,
+ * which aborts setup and leaves later blocks stuck at their primed opacity.
+ */
+function observerRootMargin(rootMargin) {
+	const parts = String(rootMargin || '').trim().split(/\s+/).filter(Boolean);
+	if (!parts.length || parts.length > 4) {
+		return '0px';
+	}
+	const token = /^-?\d*\.?\d+(px|%)$/i;
+	if (!parts.every((part) => token.test(part))) {
+		return '0px';
+	}
+	return parts.join(' ');
+}
+
+function observerThresholdList(threshold) {
+	const numeric = Number(threshold);
+	const clamped = Number.isFinite(numeric) ? clamp(numeric, 0, 1) : 0.25;
+	return Array.from(new Set([0, clamped, 1]));
+}
+
+function revealWrapper(wrapper) {
+	wrapper.classList.remove('abw-pending');
+	const nodes = [wrapper, ...wrapper.querySelectorAll('*')];
+	nodes.forEach((node) => {
+		if (!node.style) {
+			return;
+		}
+		node.style.opacity = '';
+		node.style.transform = '';
+		node.style.filter = '';
+	});
+}
+
 function parseNumericToken(token) {
 	const match = String(token).trim().match(/^(-?\d*\.?\d+)([a-z%]*)$/i);
 	if (!match) {
@@ -871,9 +914,6 @@ function animateTargets(targets, keyframes, options, reverse) {
 	const animations = [];
 	const lastIndex = Math.max(0, targets.length - 1);
 	targets.forEach((target, index) => {
-		if (!isReverse) {
-			clearInlineState(target);
-		}
 		const staggerIndex = isReverse ? lastIndex - index : index;
 		const animation = target.animate(frames, {
 			duration: options.duration,
@@ -882,6 +922,12 @@ function animateTargets(targets, keyframes, options, reverse) {
 			iterations: options.iterations,
 			fill: options.fill,
 		});
+		// Drop the primed inline from-state only after the effect exists.
+		// Clearing first lets staggered targets paint at full opacity during
+		// their delay, because fill:forwards does not hold the first keyframe.
+		if (!isReverse) {
+			clearInlineState(target);
+		}
 		animations.push(animation);
 	});
 	return animations;
@@ -891,6 +937,14 @@ function cancelWrapperAnimations(wrapper) {
 	const settleTimers = Array.isArray(wrapper.abwSettleTimers) ? wrapper.abwSettleTimers : [];
 	settleTimers.forEach((id) => window.clearTimeout(id));
 	wrapper.abwSettleTimers = [];
+
+	// A canceled entrance must not restore split text later — that puts the
+	// original, fully visible markup back after the hidden state was re-primed.
+	const restoreTimer = Number(wrapper.dataset.abwRestoreTimer || 0);
+	if (restoreTimer) {
+		window.clearTimeout(restoreTimer);
+		wrapper.dataset.abwRestoreTimer = '';
+	}
 
 	const runningAnimations = Array.isArray(wrapper.abwAnimations)
 		? wrapper.abwAnimations
@@ -966,7 +1020,7 @@ function animateChildren(wrapper, reverse = false, config = {}) {
 		wrapper.dataset.ffawLoop === '1' || wrapper.dataset.ffawTrigger === 'loop';
 	let targets = getAnimationTargets(wrapper, preset, textGranularity);
 	targets = mergeFollowTargets(wrapper, targets);
-	const rawStagger = Number(wrapper.dataset.ffawStagger || 0);
+	const rawStagger = readNonNegativeNumber(wrapper.dataset.ffawStagger, 0);
 	const bounceCount = Math.max(1, Math.min(8, Number(wrapper.dataset.ffawBounceCount || 1)));
 	const isTextContent = wrapper.dataset.ffawContentKind === 'text';
 	const forceSingleIteration = !!config.forceSingleIteration;
@@ -982,8 +1036,8 @@ function animateChildren(wrapper, reverse = false, config = {}) {
 		const cappedStep = Math.max(4, Math.floor(maxCascadeMs / (targets.length - 1)));
 		effectiveStagger = Math.min(effectiveStagger, cappedStep);
 	}
-	const duration = Number(wrapper.dataset.ffawDuration || 700);
-	const configuredDelay = Number(wrapper.dataset.ffawDelay || 0);
+	const duration = readNonNegativeNumber(wrapper.dataset.ffawDuration, 700);
+	const configuredDelay = readNonNegativeNumber(wrapper.dataset.ffawDelay, 0);
 	const hasCustomStartDelay = Number.isFinite(config.startDelay);
 	const delay = hasCustomStartDelay
 		? Math.max(0, Number(config.startDelay))
@@ -995,13 +1049,17 @@ function animateChildren(wrapper, reverse = false, config = {}) {
 		: preset === 'bounce-soft'
 			? bounceCount
 			: 1;
+	// Non-loop entrances always use `both` so the invisible from-frame is held
+	// during wrapper delay and per-target stagger. `forwards` only applies after
+	// the delay, which leaves Lift/Blur/etc. visible until each unit starts.
+	// Loops use `backwards` when anything is waiting, otherwise `none`.
+	const staggerHold = Math.max(0, targets.length - 1) * effectiveStagger;
+	const holdsStartFrame = delay > 0 || staggerHold > 0;
 	const fillMode = shouldLoop
-		? delay > 0
+		? holdsStartFrame
 			? 'backwards'
 			: 'none'
-		: delay > 0
-			? 'both'
-			: 'forwards';
+		: 'both';
 
 	cancelWrapperAnimations(wrapper);
 	if (reverse) {
@@ -1030,8 +1088,15 @@ function animateChildren(wrapper, reverse = false, config = {}) {
 	);
 	wrapper.abwAnimations = animations;
 
+	const lastStagger = Math.max(0, targets.length - 1) * effectiveStagger;
+	const activeDuration = Number.isFinite(iterations) && iterations > 1
+		? duration * iterations
+		: duration;
+
 	if (isTextContent && !reverse) {
-		scheduleTextRestore(wrapper, duration, delay, effectiveStagger, targets.length, shouldLoop);
+		// Include every bounce iteration. Restoring after a single pass un-splits
+		// text while later iterations are still running.
+		scheduleTextRestore(wrapper, activeDuration, delay, effectiveStagger, targets.length, shouldLoop);
 	}
 
 	if (!reverse && iterations !== Infinity && animations.length) {
@@ -1063,10 +1128,6 @@ function animateChildren(wrapper, reverse = false, config = {}) {
 
 		// Watchdog: if `finished` never resolves (or Safari leaves a stuck layer),
 		// force the rest state after the full delay + active duration window.
-		const lastStagger = Math.max(0, targets.length - 1) * effectiveStagger;
-		const activeDuration = Number.isFinite(iterations) && iterations > 1
-			? duration * iterations
-			: duration;
 		const settleAfterMs = Math.max(0, delay) + activeDuration + lastStagger + 80;
 		const settleTimer = window.setTimeout(settleIfCurrent, settleAfterMs);
 		const priorTimers = Array.isArray(wrapper.abwSettleTimers) ? wrapper.abwSettleTimers : [];
@@ -1929,8 +1990,9 @@ function setupWrapper(wrapper) {
 	const playsOut = animationModeIncludesOut(animationMode);
 	const clickToggle =
 		wrapper.dataset.ffawClickToggle === '1' || animationMode === 'both' || animationMode === 'out';
-	const threshold = Number(wrapper.dataset.ffawThreshold || 0.25);
-	const rootMargin = wrapper.dataset.ffawRootMargin || '';
+	const rawThreshold = Number(wrapper.dataset.ffawThreshold);
+	const threshold = Number.isFinite(rawThreshold) ? clamp(rawThreshold, 0, 1) : 0.25;
+	const rootMargin = observerRootMargin(wrapper.dataset.ffawRootMargin || '');
 	const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 	let playCount = 0;
 
@@ -2013,8 +2075,11 @@ function setupWrapper(wrapper) {
 				if (nestedTrigger !== 'scroll') {
 					return;
 				}
-				const nestedThreshold = Number(nestedWrapper.dataset.ffawThreshold || 0.25);
-				const nestedRootMargin = nestedWrapper.dataset.ffawRootMargin || '';
+				const nestedRawThreshold = Number(nestedWrapper.dataset.ffawThreshold);
+				const nestedThreshold = Number.isFinite(nestedRawThreshold)
+					? clamp(nestedRawThreshold, 0, 1)
+					: 0.25;
+				const nestedRootMargin = observerRootMargin(nestedWrapper.dataset.ffawRootMargin || '');
 				if (!isWrapperInViewport(nestedWrapper, nestedThreshold, nestedRootMargin)) {
 					return;
 				}
@@ -2201,7 +2266,9 @@ function setupWrapper(wrapper) {
 					wrapper.abwEntranceCompleted = true;
 				}
 				if (once && !playsOut) {
-					observer.unobserve(wrapper);
+					if (observer) {
+						observer.unobserve(wrapper);
+					}
 					detachManualCheck();
 				}
 			}
@@ -2213,75 +2280,84 @@ function setupWrapper(wrapper) {
 			rafCheck = window.requestAnimationFrame(runManualInViewCheck);
 		};
 
-		const observer = new IntersectionObserver(
-			(entries) => {
-				entries.forEach((entry) => {
-					if (meetsThreshold(entry)) {
-						if (isInView) {
-							return;
-						}
-						isInView = true;
-						clearQueuedExit(wrapper);
-						if (playsIn) {
-							triggerWrapperAnimation();
-						} else if (animationMode === 'out') {
-							const restTargets = mergeFollowTargets(
-								wrapper,
-								getAnimationTargets(wrapper, preset, textGranularity)
-							);
-							restTargets.forEach((target) => {
-								clearInlineState(target);
-							});
-							wrapper.abwEntranceCompleted = true;
-						}
-						hasPlayed = true;
-						if (once && !playsOut) {
-							observer.unobserve(wrapper);
-							detachManualCheck();
-						}
-					} else if (isInView) {
-						isInView = false;
-						if (!playsOut) {
-							return;
-						}
-						if ((once && animationMode === 'in') || !hasPlayed) {
-							return;
-						}
-						playExitAnimation(wrapper, {
-							directionOverride: resolveDirectionOverride(),
-							shouldProceed: () => !isInView,
-							onSkipped: () => {
-								if (animationMode === 'out') {
-									const restTargets = mergeFollowTargets(
-										wrapper,
-										getAnimationTargets(wrapper, preset, textGranularity)
-									);
-									restTargets.forEach((target) => {
-										clearInlineState(target);
+		let observer = null;
+		try {
+			observer = new IntersectionObserver(
+				(entries) => {
+					entries.forEach((entry) => {
+						if (meetsThreshold(entry)) {
+							if (isInView) {
+								return;
+							}
+							isInView = true;
+							clearQueuedExit(wrapper);
+							if (playsIn) {
+								triggerWrapperAnimation();
+							} else if (animationMode === 'out') {
+								const restTargets = mergeFollowTargets(
+									wrapper,
+									getAnimationTargets(wrapper, preset, textGranularity)
+								);
+								restTargets.forEach((target) => {
+									clearInlineState(target);
+								});
+								wrapper.abwEntranceCompleted = true;
+							}
+							hasPlayed = true;
+							if (once && !playsOut) {
+								if (observer) {
+									observer.unobserve(wrapper);
+								}
+								detachManualCheck();
+							}
+						} else if (isInView) {
+							isInView = false;
+							if (!playsOut) {
+								return;
+							}
+							if ((once && animationMode === 'in') || !hasPlayed) {
+								return;
+							}
+							playExitAnimation(wrapper, {
+								directionOverride: resolveDirectionOverride(),
+								shouldProceed: () => !isInView,
+								onSkipped: () => {
+									if (animationMode === 'out') {
+										const restTargets = mergeFollowTargets(
+											wrapper,
+											getAnimationTargets(wrapper, preset, textGranularity)
+										);
+										restTargets.forEach((target) => {
+											clearInlineState(target);
+										});
+										wrapper.abwEntranceCompleted = true;
+										return;
+									}
+									enforceInitialInvisibleState(wrapper, {
+										directionOverride: resolveDirectionOverride(),
 									});
-									wrapper.abwEntranceCompleted = true;
-									return;
-								}
-								enforceInitialInvisibleState(wrapper, {
-									directionOverride: resolveDirectionOverride(),
-								});
-							},
-							onComplete: () => {
-								if (animationMode === 'out') {
-									// Stay at exited end-state until next enter resets to rest.
-									return;
-								}
-								enforceInitialInvisibleState(wrapper, {
-									directionOverride: resolveDirectionOverride(),
-								});
-							},
-						});
-					}
-				});
-			},
-			{ threshold: [0, threshold, 1], rootMargin: rootMargin || '0px' }
-		);
-		observer.observe(wrapper);
+								},
+								onComplete: () => {
+									if (animationMode === 'out') {
+										// Stay at exited end-state until next enter resets to rest.
+										return;
+									}
+									enforceInitialInvisibleState(wrapper, {
+										directionOverride: resolveDirectionOverride(),
+									});
+								},
+							});
+						}
+					});
+				},
+				{ threshold: observerThresholdList(threshold), rootMargin: rootMargin || '0px' }
+			);
+		} catch (_error) {
+			observer = null;
+		}
+		if (observer) {
+			observer.observe(wrapper);
+		}
 		window.addEventListener('scroll', scheduleManualCheck, { passive: true });
 		window.addEventListener('resize', scheduleManualCheck);
 
@@ -2297,7 +2373,14 @@ function setupWrapper(wrapper) {
 
 function initAnimationWrappers() {
 	const wrappers = document.querySelectorAll('.wp-block-animation-block-wrapper-wrapper.abw-wrapper');
-	wrappers.forEach(setupWrapper);
+	wrappers.forEach((wrapper) => {
+		try {
+			setupWrapper(wrapper);
+		} catch (_error) {
+			// One bad block must not skip the rest, or leave itself at opacity 0.
+			revealWrapper(wrapper);
+		}
+	});
 }
 
 function bootAnimationWrappers() {

@@ -2,9 +2,9 @@
 Contributors: jsilff
 Tags: gutenberg, block, animation, scroll, motion
 Requires at least: 6.5
-Tested up to: 7.0
+Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.3.0
+Stable tag: 1.3.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -64,7 +64,15 @@ Select the AniLibrary wrapper and use "Remove animation & keep content" in Anima
 
 == Changelog ==
 
+= 1.3.1 =
+* Entrance effects such as Rise, Blur, Fade, and Slide stay invisible until each item starts, including staggered text and delays.
+* Reduced motion shows content immediately, including before JavaScript loads and when Hide until hover is on.
+* An invalid viewport margin no longer hides that block or stops other animations on the page.
+* The front-end script loads once, so a second copy cannot leave the page on an older runtime.
+* Canceled text entrances no longer pop back to visible, and Bounce waits until every bounce finishes.
+
 = 1.3.0 =
+* Confirmed compatibility with WordPress 7.1.
 * Safari fix: settle completed entrances so blur does not stick mid-flight; exits still work after settle.
 * Join parent animation children no longer run their own triggers.
 * Scroll triggers use multi-threshold observers and optional viewport margin (rootMargin).
@@ -94,6 +102,9 @@ Select the AniLibrary wrapper and use "Remove animation & keep content" in Anima
 * Added reduced-motion-safe runtime defaults.
 
 == Upgrade Notice ==
+
+= 1.3.1 =
+Fixes entrance animations that started visible, and keeps reduced-motion content from staying hidden.
 
 = 1.3.0 =
 Safari blur settle, join-parent fix, viewport margin, no-flash priming, and layout stagger.

@@ -180,6 +180,7 @@ export function makeWrapper(document, {
 	delay = 0,
 	duration = 700,
 	stagger = 0,
+	textGranularity = 'word',
 	direction = 'up',
 	rootMargin = '',
 	pending = false,
@@ -195,6 +196,7 @@ export function makeWrapper(document, {
 	el.dataset.ffawDelay = String(delay);
 	el.dataset.ffawDuration = String(duration);
 	el.dataset.ffawStagger = String(stagger);
+	el.dataset.ffawTextGranularity = textGranularity;
 	el.dataset.ffawOnce = once === false ? '0' : '1';
 	el.dataset.ffawFollowParentAnimation = followParentAnimation ? '1' : '0';
 	el.dataset.ffawInheritParentDelay = inheritParentDelay ? '1' : '0';

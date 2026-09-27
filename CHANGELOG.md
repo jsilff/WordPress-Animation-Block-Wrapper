@@ -2,8 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## 1.3.1 - 2026-09-27
+
+- Entrance presets (Rise, Blur, Fade, Slide, and the rest) hold the invisible from-frame through stagger and delay (`fill: both`); primed inline styles are cleared only after the effect exists.
+- Reduced motion overrides `abw-pending` and hide-until-hover so content is visible before JavaScript runs.
+- Invalid viewport margin or threshold no longer throws inside `IntersectionObserver` (which left that block hidden and skipped every wrapper after it). One failed wrapper is revealed and does not stop the others.
+- Non-numeric duration, delay, and stagger fall back instead of being passed to WAAPI.
+- Canceled text entrances no longer restore the original visible markup. Text Bounce waits for every iteration before un-splitting.
+- Register editor, style, and view assets by handle so `view.js` is not printed twice and the editor bundle is not stuck on the 1.2.0 asset version.
+
 ## 1.3.0 - 2026-08-04
 
+- Confirmed compatibility with WordPress 7.1.
 - Safari / WebKit: after entrance completes, settle WAAPI with `commitStyles`, cancel, and bounce `filter` so mid-flight blur layers do not stick; exit gating trusts `abwEntranceCompleted` after settle.
 - Join parent animation children no longer attach their own scroll/hover/click/loop triggers (prime only).
 - Scroll IntersectionObserver now uses threshold `[0, t, 1]` and optional **Viewport margin** (`rootMargin` / `data-ffaw-root-margin`).

@@ -141,6 +141,28 @@ describe('1.3.0 scroll IO + rootMargin', () => {
 		assert.equal(observer.options.rootMargin, '0px 0px -10% 0px');
 	});
 
+	it('falls back when viewport margin is not a valid rootMargin', () => {
+		const { document, abw, window } = createRuntime();
+		const wrap = makeWrapper(document, {
+			preset: 'blur-in',
+			trigger: 'scroll',
+			animationMode: 'in',
+			pending: true,
+			rootMargin: '10rem',
+			html: '<p>Blur</p>',
+		});
+		wrap.dataset.ffawThreshold = 'nope';
+		document.body.appendChild(wrap);
+		stubInViewport(wrap, { top: 2000, height: 100, width: 200 });
+
+		assert.doesNotThrow(() => abw.setupWrapper(wrap));
+		assert.ok(!wrap.classList.contains('abw-pending'));
+		assert.equal(wrap.firstElementChild.style.opacity, '0');
+		assert.equal(window.__ABW_OBSERVERS__.length, 1);
+		assert.equal(window.__ABW_OBSERVERS__[0].options.rootMargin, '0px');
+		assert.equal(JSON.stringify(window.__ABW_OBSERVERS__[0].options.threshold), JSON.stringify([0, 0.25, 1]));
+	});
+
 	it('manual viewport check honors rootMargin the same way as IO', () => {
 		const { document, abw, window } = createRuntime();
 		Object.defineProperty(window, 'innerHeight', { configurable: true, value: 1000 });
@@ -189,6 +211,62 @@ describe('1.3.0 settle deadline', () => {
 			scheduled.includes(380),
 			`expected settle watchdog of 380ms, got ${JSON.stringify(scheduled)}`
 		);
+	});
+
+	it('waits for every bounce iteration before restoring split text', () => {
+		const { document, abw, window } = createRuntime();
+		const scheduled = [];
+		const nativeSetTimeout = window.setTimeout.bind(window);
+		window.setTimeout = (fn, ms, ...args) => {
+			scheduled.push(Number(ms) || 0);
+			return nativeSetTimeout(fn, ms, ...args);
+		};
+
+		const wrap = makeWrapper(document, {
+			preset: 'bounce-soft',
+			trigger: 'click',
+			animationMode: 'in',
+			contentKind: 'text',
+			textGranularity: 'word',
+			stagger: 0,
+			delay: 0,
+			duration: 100,
+			html: '<p>Hello there</p>',
+		});
+		wrap.dataset.ffawBounceCount = '3';
+		document.body.appendChild(wrap);
+		abw.setupWrapper(wrap);
+		wrap.dispatchEvent(new window.Event('click', { bubbles: true }));
+
+		// Two words use the default 55ms step when stagger is 0.
+		// delay(0) + duration(100)*iterations(3) + stagger(55) + 40
+		assert.ok(
+			scheduled.includes(395),
+			`expected text restore at 395ms, got ${JSON.stringify(scheduled)}`
+		);
+	});
+
+	it('does not restore visible text after a canceled entrance', async () => {
+		const { document, abw, window } = createRuntime();
+		const wrap = makeWrapper(document, {
+			preset: 'fade',
+			trigger: 'load',
+			animationMode: 'in',
+			contentKind: 'text',
+			delay: 0,
+			duration: 20,
+			html: '<p>Hello there</p>',
+		});
+		document.body.appendChild(wrap);
+		abw.setupWrapper(wrap);
+
+		await new Promise((resolve) => window.requestAnimationFrame(resolve));
+		assert.ok(wrap.querySelector('.abw-text-unit'));
+		abw.cancelPendingEntrance(wrap);
+
+		await new Promise((resolve) => window.setTimeout(resolve, 180));
+		assert.ok(wrap.querySelector('.abw-text-unit'));
+		assert.equal(wrap.querySelector('.abw-text-unit').style.opacity, '0');
 	});
 });
 
@@ -258,5 +336,42 @@ describe('1.3.0 layout stagger + marked targets', () => {
 		const delays = animateCalls.map((call) => Number(call.options.delay)).sort((x, y) => x - y);
 		assert.equal(delays[0], 0);
 		assert.equal(delays[1], 50);
+		assert.ok(animateCalls.every((call) => call.options.fill === 'both'));
+	});
+
+	it('holds the invisible from-frame for staggered text entrances', () => {
+		const { document, abw, clearAnimateCalls, animateCalls, window } = createRuntime();
+		const wrap = makeWrapper(document, {
+			preset: 'blur-in',
+			trigger: 'load',
+			animationMode: 'in',
+			contentKind: 'text',
+			textGranularity: 'character',
+			stagger: 18,
+			delay: 0,
+			duration: 400,
+			html: '<h1>Lift</h1>',
+		});
+		document.body.appendChild(wrap);
+		clearAnimateCalls();
+		abw.setupWrapper(wrap);
+
+		const heading = wrap.querySelector('h1');
+		const units = [...wrap.querySelectorAll('.abw-text-unit')];
+		assert.ok(units.length > 1);
+		assert.ok(units.every((unit) => unit.style.opacity === '0'));
+		assert.equal(heading.style.opacity, '');
+
+		// Load plays on the next frame; flush that callback.
+		return new Promise((resolve) => {
+			window.requestAnimationFrame(() => {
+				assert.ok(animateCalls.length >= units.length);
+				assert.ok(animateCalls.every((call) => call.options.fill === 'both'));
+				const delays = animateCalls.map((call) => Number(call.options.delay));
+				assert.ok(delays.some((delay) => delay > 0));
+				assert.ok(animateCalls.every((call) => call.keyframes[0].opacity === 0));
+				resolve();
+			});
+		});
 	});
 });
