@@ -339,6 +339,54 @@ describe('1.3.0 layout stagger + marked targets', () => {
 		assert.ok(animateCalls.every((call) => call.options.fill === 'both'));
 	});
 
+	it('pulls kerning pairs together and leaves unkerned pairs alone', () => {
+		const { document, abw, window } = createRuntime();
+		const fonts = [];
+		window.HTMLCanvasElement.prototype.getContext = function getContext() {
+			const state = { font: '' };
+			return {
+				set font(value) {
+					state.font = value;
+					fonts.push(value);
+				},
+				get font() {
+					return state.font;
+				},
+				measureText(text) {
+					const widths = { Y: 12, o: 10, Yo: 20, a: 8, b: 8, ab: 16 };
+					return { width: Object.prototype.hasOwnProperty.call(widths, text) ? widths[text] : String(text).length * 8 };
+				},
+			};
+		};
+
+		const style = document.createElement('style');
+		style.textContent = '.abw-text-unit-char{font:16px TestFont;} strong .abw-text-unit-char{font:700 16px BoldFont;}';
+		document.head.appendChild(style);
+
+		const wrap = makeWrapper(document, {
+			preset: 'letter-pop',
+			trigger: 'scroll',
+			animationMode: 'in',
+			contentKind: 'text',
+			textGranularity: 'character',
+			html: '<p>Yo <strong>ab</strong></p>',
+		});
+		document.body.appendChild(wrap);
+		stubInViewport(wrap, { top: 2000, height: 40, width: 200 });
+		abw.setupWrapper(wrap);
+
+		const words = [...wrap.querySelectorAll('.abw-text-word')];
+		const yo = [...words[0].querySelectorAll('.abw-text-unit-char')];
+		const plain = [...words[1].querySelectorAll('.abw-text-unit-char')];
+		assert.equal(yo[0].textContent, 'Y');
+		assert.equal(yo[0].style.marginRight, '-2px');
+		assert.equal(yo[1].style.marginRight, '');
+		assert.equal(plain[0].style.marginRight, '');
+		assert.equal(plain[1].style.marginRight, '');
+		assert.ok(fonts.includes(window.getComputedStyle(yo[0]).font));
+		assert.ok(fonts.includes(window.getComputedStyle(plain[0]).font));
+	});
+
 	it('holds the invisible from-frame for staggered text entrances', () => {
 		const { document, abw, clearAnimateCalls, animateCalls, window } = createRuntime();
 		const wrap = makeWrapper(document, {

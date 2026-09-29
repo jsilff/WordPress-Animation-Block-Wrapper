@@ -4,7 +4,7 @@ Tags: gutenberg, block, animation, scroll, motion
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.3.1
+Stable tag: 1.3.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -64,6 +64,9 @@ Select the AniLibrary wrapper and use "Remove animation & keep content" in Anima
 
 == Changelog ==
 
+= 1.3.2 =
+* Per-character animations keep each word's kerning. Letters no longer jump when the animation settles.
+
 = 1.3.1 =
 * Entrance effects such as Rise, Blur, Fade, and Slide stay invisible until each item starts, including staggered text and delays.
 * Reduced motion shows content immediately, including before JavaScript loads and when Hide until hover is on.
@@ -102,6 +105,9 @@ Select the AniLibrary wrapper and use "Remove animation & keep content" in Anima
 * Added reduced-motion-safe runtime defaults.
 
 == Upgrade Notice ==
+
+= 1.3.2 =
+Per-character animations keep kerning, so letters no longer shift when the effect finishes.
 
 = 1.3.1 =
 Fixes entrance animations that started visible, and keeps reduced-motion content from staying hidden.

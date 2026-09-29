@@ -30,7 +30,6 @@
 .wp-block-animation-block-wrapper-wrapper.abw-wrapper .abw-text-character-mode,
 .wp-block-animation-block-wrapper-wrapper.abw-wrapper .abw-text-character-mode .abw-text-word,
 .wp-block-animation-block-wrapper-wrapper.abw-wrapper .abw-text-character-mode .abw-text-unit-char {
-	font-kerning: none;
 	font-variant-ligatures: none;
 }
 

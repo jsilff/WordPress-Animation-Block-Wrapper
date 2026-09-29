@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## 1.3.2 - 2026-09-29
+
+- Per-character splits measure each pair's kerning with that letter's computed font and set `marginRight` on every character except the last in the word. Restoring the original text no longer snaps spacing. `font-kerning: none` is removed; spans still cannot kern on their own.
+
 ## 1.3.1 - 2026-09-27
 
 - Entrance presets (Rise, Blur, Fade, Slide, and the rest) hold the invisible from-frame through stagger and delay (`fill: both`); primed inline styles are cleared only after the effect exists.

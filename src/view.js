@@ -671,6 +671,65 @@ function splitElementTextUnits(element, mode, owningWrapper) {
 	element.dataset.abwSplitMode = mode;
 }
 
+function kerningOffset(font, left, right) {
+	if (!font || !left || !right || typeof document === 'undefined') {
+		return 0;
+	}
+	const canvas = kerningOffset.canvas || (kerningOffset.canvas = document.createElement('canvas'));
+	const ctx = canvas.getContext && canvas.getContext('2d');
+	if (!ctx || typeof ctx.measureText !== 'function') {
+		return 0;
+	}
+	try {
+		ctx.font = font;
+		const pair = ctx.measureText(left + right).width;
+		const leftWidth = ctx.measureText(left).width;
+		const rightWidth = ctx.measureText(right).width;
+		if (![pair, leftWidth, rightWidth].every((value) => Number.isFinite(value))) {
+			return 0;
+		}
+		return pair - leftWidth - rightWidth;
+	} catch (_error) {
+		return 0;
+	}
+}
+
+function canvasFontFromStyle(style) {
+	if (style.font) {
+		return style.font;
+	}
+	return [
+		style.fontStyle,
+		style.fontVariant,
+		style.fontWeight,
+		style.fontSize,
+		style.fontFamily,
+	].filter(Boolean).join(' ');
+}
+
+/**
+ * Character spans are separate text runs, so the browser cannot kern across them.
+ * Pull each letter toward the next by the pair's kerning amount. The last letter
+ * in a word is left alone. Each span is measured with its own computed font.
+ */
+function applyCharacterKerning(element) {
+	element.querySelectorAll('.abw-text-word').forEach((word) => {
+		const chars = Array.from(word.children).filter((child) =>
+			child.classList.contains('abw-text-unit-char')
+		);
+		for (let index = 0; index < chars.length - 1; index += 1) {
+			const span = chars[index];
+			const next = chars[index + 1];
+			const font = canvasFontFromStyle(window.getComputedStyle(span));
+			const offset = kerningOffset(font, span.textContent || '', next.textContent || '');
+			if (!Number.isFinite(offset) || Math.abs(offset) < 0.05) {
+				continue;
+			}
+			span.style.marginRight = `${offset}px`;
+		}
+	});
+}
+
 function splitElementTextCharacters(element, owningWrapper) {
 	ensureSplitRoot(element, 'character');
 	element.classList.add('abw-text-character-mode');
@@ -713,6 +772,7 @@ function splitElementTextCharacters(element, owningWrapper) {
 	});
 
 	element.dataset.abwSplitMode = 'character';
+	applyCharacterKerning(element);
 }
 
 function splitElementTextLines(element, owningWrapper) {
