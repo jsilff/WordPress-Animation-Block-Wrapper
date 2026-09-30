@@ -4,7 +4,7 @@ Tags: gutenberg, block, animation, scroll, motion
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.3.2
+Stable tag: 1.3.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -64,6 +64,9 @@ Select the AniLibrary wrapper and use "Remove animation & keep content" in Anima
 
 == Changelog ==
 
+= 1.3.3 =
+* Per-character kerning now uses each letter's real size and weight. Pairs such as "Yo" stay as tight during the animation as they are after it settles.
+
 = 1.3.2 =
 * Per-character animations keep each word's kerning. Letters no longer jump when the animation settles.
 
@@ -105,6 +108,9 @@ Select the AniLibrary wrapper and use "Remove animation & keep content" in Anima
 * Added reduced-motion-safe runtime defaults.
 
 == Upgrade Notice ==
+
+= 1.3.3 =
+Per-character animations measure kerning with the letter's real font, so pairs like "Yo" no longer sit too far apart.
 
 = 1.3.2 =
 Per-character animations keep kerning, so letters no longer shift when the effect finishes.

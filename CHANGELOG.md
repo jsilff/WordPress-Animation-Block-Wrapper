@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## 1.3.3 - 2026-09-30
+
+- Character kerning is measured with each span's size, weight, and family. Chrome leaves the `font` shorthand empty when ligatures are disabled, and the old fallback included `font-variant`, which canvas rejects. Pairs such as "Yo" were compensated with the default 10px font and stayed visibly loose.
+
 ## 1.3.2 - 2026-09-29
 
 - Per-character splits measure each pair's kerning with that letter's computed font and set `marginRight` on every character except the last in the word. Restoring the original text no longer snaps spacing. `font-kerning: none` is removed; spans still cannot kern on their own.

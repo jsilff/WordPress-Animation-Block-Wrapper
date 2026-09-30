@@ -342,17 +342,43 @@ describe('1.3.0 layout stagger + marked targets', () => {
 	it('pulls kerning pairs together and leaves unkerned pairs alone', () => {
 		const { document, abw, window } = createRuntime();
 		const fonts = [];
+		const originalComputedStyle = window.getComputedStyle.bind(window);
+		window.getComputedStyle = (element) => {
+			const style = originalComputedStyle(element);
+			if (!element.classList || !element.classList.contains('abw-text-unit-char')) {
+				return style;
+			}
+			return new Proxy(style, {
+				get(target, prop) {
+					if (prop === 'font') {
+						return '';
+					}
+					if (prop === 'fontVariant') {
+						return 'no-common-ligatures';
+					}
+					const value = target[prop];
+					return typeof value === 'function' ? value.bind(target) : value;
+				},
+			});
+		};
 		window.HTMLCanvasElement.prototype.getContext = function getContext() {
-			const state = { font: '' };
+			const state = { font: '10px sans-serif' };
 			return {
 				set font(value) {
-					state.font = value;
-					fonts.push(value);
+					const next = String(value);
+					if (next.includes('no-common-ligatures') || !next.includes('px')) {
+						return;
+					}
+					state.font = next;
+					fonts.push(next);
 				},
 				get font() {
 					return state.font;
 				},
 				measureText(text) {
+					if (!state.font.includes('px') || state.font === '10px sans-serif') {
+						return { width: String(text).length * 10 };
+					}
 					const widths = { Y: 12, o: 10, Yo: 20, a: 8, b: 8, ab: 16 };
 					return { width: Object.prototype.hasOwnProperty.call(widths, text) ? widths[text] : String(text).length * 8 };
 				},
@@ -383,8 +409,11 @@ describe('1.3.0 layout stagger + marked targets', () => {
 		assert.equal(yo[1].style.marginRight, '');
 		assert.equal(plain[0].style.marginRight, '');
 		assert.equal(plain[1].style.marginRight, '');
-		assert.ok(fonts.includes(window.getComputedStyle(yo[0]).font));
-		assert.ok(fonts.includes(window.getComputedStyle(plain[0]).font));
+		const yStyle = window.getComputedStyle(yo[0]);
+		const boldStyle = window.getComputedStyle(plain[0]);
+		assert.ok(fonts.some((font) => font.includes(yStyle.fontSize) && font.includes('TestFont')));
+		assert.ok(fonts.some((font) => font.includes(boldStyle.fontWeight) && font.includes('BoldFont')));
+		assert.ok(fonts.every((font) => !font.includes('no-common-ligatures')));
 	});
 
 	it('holds the invisible from-frame for staggered text entrances', () => {

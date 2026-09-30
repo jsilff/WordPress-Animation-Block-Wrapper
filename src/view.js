@@ -682,6 +682,9 @@ function kerningOffset(font, left, right) {
 	}
 	try {
 		ctx.font = font;
+		if ('fontKerning' in ctx) {
+			ctx.fontKerning = 'normal';
+		}
 		const pair = ctx.measureText(left + right).width;
 		const leftWidth = ctx.measureText(left).width;
 		const rightWidth = ctx.measureText(right).width;
@@ -695,16 +698,27 @@ function kerningOffset(font, left, right) {
 }
 
 function canvasFontFromStyle(style) {
-	if (style.font) {
-		return style.font;
+	// Chrome's font shorthand is empty once font-variant-ligatures is none, and
+	// the font-variant longhand (no-common-ligatures) is not a legal canvas font
+	// token. An invalid assignment is ignored, so measureText would use the
+	// default 10px font and under-kern pairs like "Yo".
+	const caps = style.fontVariantCaps === 'small-caps' || style.fontVariant === 'small-caps'
+		? 'small-caps'
+		: '';
+	const stretch = style.fontStretch && !/^(normal|100%)$/.test(style.fontStretch)
+		? style.fontStretch
+		: '';
+	if (style.fontSize && style.fontFamily) {
+		return [
+			style.fontStyle,
+			caps,
+			style.fontWeight,
+			stretch,
+			style.fontSize,
+			style.fontFamily,
+		].filter(Boolean).join(' ');
 	}
-	return [
-		style.fontStyle,
-		style.fontVariant,
-		style.fontWeight,
-		style.fontSize,
-		style.fontFamily,
-	].filter(Boolean).join(' ');
+	return style.font || '';
 }
 
 /**
